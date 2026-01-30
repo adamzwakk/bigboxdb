@@ -20,10 +20,10 @@ func Connect() *gorm.DB {
 	once.Do(func() {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 			os.Getenv("MYSQL_USER"),
-			os.Getenv("MYSQL_PASS"),
+			os.Getenv("MYSQL_PASSWORD"),
 			os.Getenv("MYSQL_HOST"),
 			os.Getenv("MYSQL_PORT"),
-			os.Getenv("MYSQL_DB"),
+			os.Getenv("MYSQL_DATABASE"),
 		)
 
 		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})

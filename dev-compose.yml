@@ -1,15 +1,13 @@
-name: bigboxdbgo
+name: bigboxdb-server
 
 services:
   
   mariadb:
     image: mariadb:lts
     restart: no
-    environment:
-      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: true
+    env_file: ".env"
     volumes:
-      - ./dev-db:/var/lib/mysql
-      - ./dbinit:/docker-entrypoint-initdb.d
+      - ./db:/var/lib/mysql
     ports:
       - 3306:3306
     networks:

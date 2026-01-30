@@ -1,4 +1,4 @@
-module github.com/adamzwakk/bigboxdb/server
+module github.com/adamzwakk/bigboxdb-server
 
 go 1.25.5
 

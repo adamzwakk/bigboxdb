@@ -6,8 +6,8 @@ import (
 	"log"
 	"github.com/gin-gonic/gin"
 
-	"github.com/adamzwakk/bigboxdb/server/db"
-	"github.com/adamzwakk/bigboxdb/server/models"
+	"github.com/adamzwakk/bigboxdb-server/db"
+	"github.com/adamzwakk/bigboxdb-server/models"
 )
 
 func All(c *gin.Context){

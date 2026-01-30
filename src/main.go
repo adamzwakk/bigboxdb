@@ -7,12 +7,12 @@ import (
 	"github.com/joho/godotenv"
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"github.com/adamzwakk/bigboxdb/server/handlers"
+	"github.com/adamzwakk/bigboxdb-server/handlers"
 )
 
 func main() {
 	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load(); err != nil {
+		if err := godotenv.Load("./../.env"); err != nil {
 			log.Println("No .env file found (ok for production)")
 		}
 	}

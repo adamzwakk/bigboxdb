@@ -1,2 +1,4 @@
-dev-db
-server/.env
+db
+.env
+
+!src/db
