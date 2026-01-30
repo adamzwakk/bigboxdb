@@ -11,12 +11,19 @@ type Game struct{
 	SeriesSort				*string `gorm:"type:varchar(255);"`
 	Slug					string	`gorm:"type:varchar(255);not null;unique;"`
 	Year					int
+
 	Variants				[]Variant
-	PlatformId				int
-	MobygamesId				int
-	IgdbId					int
+
+	PlatformID				uint
+	Platform				Platform
+
+	MobygamesID				int
+	IgdbID					int
+	
 	SteamLink				*string
 	GogLink					*string
 	OtherLink				*string
+
 	CreatedAt 				time.Time
+	UpdatedAt 				time.Time
 }
