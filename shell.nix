@@ -3,6 +3,8 @@
 pkgs.mkShell {
   buildInputs = [
     pkgs.go
+    pkgs.just
+    pkgs.lazysql
   ];
 
   shellHook = ''
