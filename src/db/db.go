@@ -18,7 +18,7 @@ var (
 
 func Connect() *gorm.DB {
 	once.Do(func() {
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
 			os.Getenv("MYSQL_USER"),
 			os.Getenv("MYSQL_PASSWORD"),
 			os.Getenv("MYSQL_HOST"),

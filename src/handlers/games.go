@@ -2,8 +2,6 @@ package games
 
 import (
 	"net/http"
-	"os"
-	"log"
 	"github.com/gin-gonic/gin"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
@@ -12,12 +10,6 @@ import (
 
 func All(c *gin.Context){
 	database := db.GetDB()
-
-	if os.Getenv("APP_ENV") != "production" {
-		database.AutoMigrate(&models.Game{},&models.Variant{},)
-	} else {
-		log.Println("Skipping automatic migration in production.")
-	}
 
 	var games []models.Game
 
