@@ -20,7 +20,6 @@ type Variant struct{
 	Slug					string	`gorm:"type:varchar(255);not null;unique;"`
 	Region					int
 
-
 	BoxTypeID				uint
 	BoxType					BoxType
 	

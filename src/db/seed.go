@@ -3,17 +3,33 @@ package db
 import (
 	"log"
     "gorm.io/gorm"
+	"github.com/dchest/uniuri"
 	"github.com/adamzwakk/bigboxdb-server/models"
 )
 
 func RunAllSeeds(db *gorm.DB) error {
-    return RunSeedOnce(db, "seed_v1_box_types", func(tx *gorm.DB) error {
+	seedsRan := 0
+    if err := RunSeedOnce(db, "seed_v1_box_types", func(tx *gorm.DB) error {
 		log.Println("No record of seed_v1_box_types seed, running...")
-        if err := seedInitialBoxTypes(tx); err != nil {
-            return err
-        }
-        return nil
-    })
+		seedsRan += 1
+        return seedInitialBoxTypes(tx)
+    }); err != nil {
+        return err
+    }
+
+	if err := RunSeedOnce(db, "seed_v1_users", func(tx *gorm.DB) error {
+		log.Println("No record of seed_v1_users seed, running...")
+		seedsRan += 1
+        return seedInitialUsers(tx)
+    }); err != nil {
+        return err
+    }
+
+	if(seedsRan > 0){
+		log.Println("Seeds ran!")
+	}
+
+	return nil
 }
 
 func seedInitialBoxTypes(db *gorm.DB) error {
@@ -43,8 +59,28 @@ func seedInitialBoxTypes(db *gorm.DB) error {
         if err := db.
             Where("id = ?", bt.ID).
             FirstOrCreate(&bt).Error; err != nil {
-            return err
-        }
+				return err
+			}
+    }
+    return nil
+}
+
+func seedInitialUsers(db *gorm.DB) error {
+    boxtypes := []models.User{
+        {Name: "UncleHans",ApiKey: uniuri.NewLen(24)},
+		{Name: "apocalypse1227",ApiKey: uniuri.NewLen(24)},
+		{Name: "GarageBay9",ApiKey: uniuri.NewLen(24)},
+		{Name: "ParallaxAbstraction",ApiKey: uniuri.NewLen(24)},
+		{Name: "SaltyPSlug",ApiKey: uniuri.NewLen(24)},
+		{Name: "Sentry",ApiKey: uniuri.NewLen(24)},
+    }
+
+    for _, bt := range boxtypes {
+        if err := db.
+            Where("id = ?", bt.ID).
+            FirstOrCreate(&bt).Error; err != nil {
+				return err
+			}
     }
     return nil
 }
