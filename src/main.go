@@ -34,7 +34,6 @@ func main() {
     }
 
 	r := gin.Default()
-
 	{
 		a := r.Group("/api")
 
@@ -45,7 +44,10 @@ func main() {
 		})
 
 		g := a.Group("/games")
-		g.GET("/all", games.All)
+		g.GET("/all", handlers.GamesAll)
+
+		ad := a.Group("/admin")
+		ad.PUT("/import", handlers.AdminImport)
 	}
 
 	

@@ -2,6 +2,7 @@ package db
 
 import (
 	"log"
+	"fmt"
     "gorm.io/gorm"
 	"github.com/dchest/uniuri"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -26,7 +27,7 @@ func RunAllSeeds(db *gorm.DB) error {
     }
 
 	if(seedsRan > 0){
-		log.Println("Seeds ran!")
+		log.Println(fmt.Sprintf("%d Seeds ran!", seedsRan))
 	}
 
 	return nil

@@ -1,5 +1,5 @@
 build:
-    podman compose -f dev-compose.yml up -d
+    cd src && go build -o ../dist/bigboxdb_server
 
 run:
     cd src && go run .

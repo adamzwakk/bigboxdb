@@ -1,4 +1,4 @@
-package games
+package handlers
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"github.com/adamzwakk/bigboxdb-server/models"
 )
 
-func All(c *gin.Context){
+func GamesAll(c *gin.Context){
 	database := db.GetDB()
 
 	var games []models.Game
