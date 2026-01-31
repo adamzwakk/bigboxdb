@@ -6,6 +6,7 @@ import (
     "io"
 	"os"
     "log"
+	"fmt"
 	"slices"
 	"net/http"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
+	"gorm.io/gorm/clause"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -121,9 +123,7 @@ func AdminImport(c *gin.Context){
     }
 
 	database := db.GetDB()
-
-	// TODO: Check if slug exists and update instead?
-	slug := slug.Make(data.Title)
+	slugTitle := slug.Make(data.Title)
 	variantDesc := data.Variant
 
 	if data.BBDBVersion == nil {
@@ -153,7 +153,7 @@ func AdminImport(c *gin.Context){
 
 	game := models.Game{
 		Title:			data.Title,
-		Slug:			slug,
+		Slug:			slugTitle,
 		Description: 	data.Description,
 		Year:			data.Year,
 		PlatformID:		platform.ID,
@@ -161,6 +161,7 @@ func AdminImport(c *gin.Context){
 			{
 				BoxTypeID:	data.BoxType,
 				Description: variantDesc,
+				Slug:		slug.Make(fmt.Sprintf("%s-%d", variantDesc, data.BoxType)),
 
 				DeveloperID:	dev.ID,
 				PublisherID:	pub.ID,
@@ -174,9 +175,17 @@ func AdminImport(c *gin.Context){
 		},
 	}
 
-	database.Create(&game)
+	database.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "slug"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"title",
+			"description",
+			"year",
+			"platform_id",
+		}),
+	}).Create(&game)
 
-	c.String(http.StatusOK, slug)
+	c.String(http.StatusOK, slugTitle)
 
 	//c.JSON(http.StatusOK, data)
 	return
@@ -184,7 +193,7 @@ func AdminImport(c *gin.Context){
 	// Image Process
 	for _, zf := range zipReader.File {
 		if zf.Name == "info.json" {
-			continue
+			continue // we already processed you!
 		}
 		if(!slices.Contains(allowedFiles, zf.Name)){
 			c.String(http.StatusBadRequest, "Failed to read approve "+zf.Name)
