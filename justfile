@@ -9,6 +9,9 @@ down:
 lsql:
     lazysql "mariadb://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}"
 
+reset-db:
+    podman compose down mariadb && podman volume rm bigboxdb-server_db-data && podman compose up -d mariadb
+
 build:
     cd src && go build -o ../dist/bigboxdb_server
 

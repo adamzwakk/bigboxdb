@@ -20,7 +20,7 @@ services:
     restart: no
     env_file: ".env"
     volumes:
-      - ./db-data:/var/lib/mysql
+      - db-data:/var/lib/mysql
     ports:
       - 3306:3306
     networks:
@@ -61,3 +61,6 @@ services:
 
 networks:
   bbdb_network:
+
+volumes:
+  db-data:

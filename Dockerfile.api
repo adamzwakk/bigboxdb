@@ -25,7 +25,4 @@ USER nonroot:nonroot
 ENV GIN_MODE=release
 ENV MYSQL_HOST=mariadb
 
-# Should I migrate every build?
-RUN /app/server migrate 
-
 CMD ["/app/server","host"]

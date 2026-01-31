@@ -141,7 +141,7 @@ func AdminImport(c *gin.Context){
 	}
 
 	var platform models.Platform
-	if err := database.FirstOrCreate(&platform, models.User{Name: data.Platform}).Error; err != nil {
+	if err := database.FirstOrCreate(&platform, models.Platform{Name: data.Platform, Slug: slug.Make(data.Platform)}).Error; err != nil {
 		c.String(http.StatusInternalServerError, "Could not find/create Platform")
 	}
 
