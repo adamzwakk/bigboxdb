@@ -68,14 +68,14 @@ func seedInitialBoxTypes(db *gorm.DB) error {
 }
 
 func seedInitialUsers(db *gorm.DB) error {
-    boxtypes := []models.User{
+    users := []models.User{
         {Name: os.Getenv("BBDB_ADMIN_NAME"), ApiKey: uniuri.NewLen(24)},
     }
 
-    for _, bt := range boxtypes {
+    for _, u := range users {
         if err := db.
-            Where("id = ?", bt.ID).
-            FirstOrCreate(&bt).Error; err != nil {
+            Where("id = ?", u.ID).
+            FirstOrCreate(&u).Error; err != nil {
 				return err
 			}
     }

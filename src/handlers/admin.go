@@ -180,8 +180,6 @@ func AdminImport(c *gin.Context){
 		DoUpdates: clause.AssignmentColumns([]string{
 			"title",
 			"description",
-			"year",
-			"platform_id",
 		}),
 	}).Create(&game)
 

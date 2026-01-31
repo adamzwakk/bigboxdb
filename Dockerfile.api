@@ -1,0 +1,31 @@
+FROM golang:1.25 AS builder
+
+WORKDIR /app
+
+COPY src ./src
+COPY .env ./.env
+
+WORKDIR /app/src
+
+RUN go mod download
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/server .
+
+# ---- Run stage ----
+FROM gcr.io/distroless/static:nonroot
+
+WORKDIR /app
+
+COPY --from=builder /app/server /app/server
+COPY --from=builder /app/.env /.env
+
+EXPOSE 8080
+USER nonroot:nonroot
+
+ENV GIN_MODE=release
+ENV MYSQL_HOST=mariadb
+
+# Should I migrate every build?
+RUN /app/server migrate 
+
+CMD ["/app/server","host"]

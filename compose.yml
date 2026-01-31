@@ -1,6 +1,19 @@
 name: bigboxdb-server
 
 services:
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: bigboxdb-api:latest
+    container_name: bigboxdb-api
+    ports:
+      - "8080:8080"
+    networks:
+      - bbdb_network
+    depends_on:
+      - mariadb
   
   mariadb:
     image: mariadb:lts
