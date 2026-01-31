@@ -7,7 +7,7 @@ down:
     podman compose down
 
 lsql:
-    lazysql "mariadb://${MYSQL_USER}:${MYSQL_PASSWORD}@localhost:3306"
+    lazysql "mariadb://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}"
 
 build:
     cd src && go build -o ../dist/bigboxdb_server
