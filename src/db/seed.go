@@ -2,6 +2,7 @@ package db
 
 import (
 	"log"
+	"os"
 	"fmt"
     "gorm.io/gorm"
 	"github.com/dchest/uniuri"
@@ -68,12 +69,7 @@ func seedInitialBoxTypes(db *gorm.DB) error {
 
 func seedInitialUsers(db *gorm.DB) error {
     boxtypes := []models.User{
-        {Name: "UncleHans",ApiKey: uniuri.NewLen(24)},
-		{Name: "apocalypse1227",ApiKey: uniuri.NewLen(24)},
-		{Name: "GarageBay9",ApiKey: uniuri.NewLen(24)},
-		{Name: "ParallaxAbstraction",ApiKey: uniuri.NewLen(24)},
-		{Name: "SaltyPSlug",ApiKey: uniuri.NewLen(24)},
-		{Name: "Sentry",ApiKey: uniuri.NewLen(24)},
+        {Name: os.Getenv("BBDB_ADMIN_NAME"), ApiKey: uniuri.NewLen(24)},
     }
 
     for _, bt := range boxtypes {

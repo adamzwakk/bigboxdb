@@ -34,6 +34,7 @@ func main() {
     }
 
 	r := gin.Default()
+	r.Static("/uploads", "./uploads")
 	{
 		a := r.Group("/api")
 
