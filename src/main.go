@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -20,38 +21,46 @@ func main() {
 		}
 	}
 
-	// SEED/MIGRATE DB
-	database := db.GetDB()
-	if err := database.AutoMigrate(
-        &models.Game{},
-        &models.Variant{},
-        &db.SeedMeta{},
-    ); err != nil {
-        log.Fatal(err)
-    }
-	if err := db.RunAllSeeds(database); err != nil {
-        log.Fatal(err)
-    }
+	args := os.Args[1:]
 
-	r := gin.Default()
-	r.Static("/uploads", "./uploads")
-	{
-		a := r.Group("/api")
+	if slices.Contains(args, "migrate") {
+		// SEED/MIGRATE DB
+		database := db.GetDB()
+		if err := database.AutoMigrate(
+			&models.Game{},
+			&models.Variant{},
+			&db.SeedMeta{},
+		); err != nil {
+			log.Fatal(err)
+		}
+		if err := db.RunAllSeeds(database); err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Any pending migrations run!")
+		
+	} else if slices.Contains(args, "host") {
+		// MAIN WEB SERVER
+		r := gin.Default()
+		r.Static("/uploads", "./uploads")
+		{
+			a := r.Group("/api")
 
-		a.GET("/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"status": "ok",
+			a.GET("/health", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"status": "ok",
+				})
 			})
-		})
 
-		g := a.Group("/games")
-		g.GET("/all", handlers.GamesAll)
+			g := a.Group("/games")
+			g.GET("/all", handlers.GamesAll)
 
-		ad := a.Group("/admin")
-		ad.PUT("/import", handlers.AdminImport)
+			ad := a.Group("/admin")
+			ad.Use(handlers.AuthMiddleware())
+			{
+				ad.PUT("/import", handlers.AdminImport)
+			}
+		}
+
+		r.Run(":8080")
 	}
-
-	
-
-	r.Run(":8080")
 }
