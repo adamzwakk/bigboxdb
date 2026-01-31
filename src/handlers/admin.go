@@ -65,7 +65,7 @@ func (f *FirstString) UnmarshalJSON(data []byte) error {
     return nil
 }
 
-
+// Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
 	destDir := "./uploads/scans/"
     os.MkdirAll(destDir, os.ModePerm)
