@@ -38,6 +38,19 @@ func main() {
 		}
 		log.Println("Any pending migrations run!")
 		
+	} else if slices.Contains(args, "import") {
+		zpath := args[1]
+
+		zipData, err := os.ReadFile(zpath)
+		if err != nil {
+			log.Fatal("failed to read file: %w")
+			return
+		}
+
+		if err := handlers.ImportZip(zipData); err != nil {
+			log.Fatal(err.Error())
+			return
+		}
 	} else if slices.Contains(args, "host") {
 		// MAIN WEB SERVER
 		r := gin.Default()

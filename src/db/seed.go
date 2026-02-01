@@ -34,11 +34,13 @@ func RunAllSeeds(db *gorm.DB) error {
 	return nil
 }
 
+func f32(v float32) *float32 { return &v }
+
 func seedInitialBoxTypes(db *gorm.DB) error {
     boxtypes := []models.BoxType{
         {ID:1, Name: "Big Box"},
 		{ID:2, Name: "Small Box"},
-		{ID:3, Name: "Eidos Trapezoid"},
+		{ID: 3, Name: "Eidos Trapezoid", Width: f32(10), Height: f32(10), Depth: f32(2)},
 		{ID:4, Name: "DVD Case Slipcover"},
 		{ID:5, Name: "Old Small Box"},
 		{ID:6, Name: "Box in Box"},

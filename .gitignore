@@ -2,4 +2,6 @@ db-data
 dist
 .env
 
+src/tools
+
 !src/db

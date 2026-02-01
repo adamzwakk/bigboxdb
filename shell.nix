@@ -3,6 +3,8 @@
 pkgs.mkShell {
   buildInputs = [
     pkgs.go
+    pkgs.ktx-tools
+
     pkgs.just
     pkgs.lazysql
   ];
