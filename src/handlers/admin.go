@@ -5,8 +5,7 @@ import (
 	"bytes"
     "io"
 	"os"
-	"os/exec"
-    // "log"
+    "log"
 	"strings"
 	"fmt"
 	"slices"
@@ -14,11 +13,9 @@ import (
 	"path/filepath"
 	"encoding/json"
 
-	_ "golang.org/x/image/tiff"
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm/clause"
-	"github.com/disintegration/imaging"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -73,7 +70,7 @@ func (f *FirstString) UnmarshalJSON(data []byte) error {
 
 var destDir = "./uploads/scans/"
 // var allowedFiles = []string{"back.webp", "bottom.webp", "box.glb", "box-low.glb", "front.webp", "info.json", "left.webp", "right.webp", "top.webp"}
-var allowedFiles = []string{"back.tif", "bottom.tif", "box.glb", "box-low.glb", "front.tif", "info.json", "left.tif", "right.tif", "top.tif"}
+var allowedFiles = []string{"back.tif", "bottom.tif", "box.glb", "box-low.glb", "front.tif", "info.json", "left.tif", "right.tif", "top.tif", "gatefold_left.tif", "gatefold_right.tif"}
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
@@ -240,6 +237,9 @@ func ImportZip(zipData []byte) error {
 	}).Create(&game)
 
 	// process images
+	var texPaths = []string{}
+	gameDir := destDir+slugTitle
+
 	for _, zf := range reader.File {
 		if zf.Name == "info.json" || zf.FileInfo().IsDir() {
 			continue
@@ -249,9 +249,6 @@ func ImportZip(zipData []byte) error {
 		}
 
 		filename := filepath.Base(zf.Name)
-		ext := strings.ToLower(filepath.Ext(zf.Name))
-
-		gameDir := destDir+slugTitle
 		dstPath := gameDir+"/"+filename
 		os.MkdirAll(gameDir, os.ModePerm)
 		dstPath = strings.ReplaceAll(dstPath, ".tif", ".webp")
@@ -276,36 +273,32 @@ func ImportZip(zipData []byte) error {
 		}
 		tmpFile.Close()
 		
-		// Try to open and validate
-		_, err = imaging.Open(tmpPath)
-		if err != nil && (ext == ".tif" || ext == ".tiff") {
-			fmt.Printf("TIFF decode failed, attempting ImageMagick conversion for %s\n", zf.Name)
-			
-			pngPath := strings.TrimSuffix(tmpPath, filepath.Ext(tmpPath)) + ".png"
-			defer os.Remove(pngPath)
-			
-			cmd := exec.Command("convert", tmpPath, pngPath)
-			if err := cmd.Run(); err != nil {
-				fmt.Printf("Warning: ImageMagick conversion failed for %s - %v\n", zf.Name, err)
-				return nil
-			}
-			
-			// Use the converted PNG instead
-			tmpPath = pngPath
-			
-			// Verify the conversion worked
-			_, err = imaging.Open(tmpPath)
-			if err != nil {
-				fmt.Printf("Warning: Converted image still invalid %s - %v\n", zf.Name, err)
-				return nil
-			}
-		}
-
 		// process assets
 		if err := tools.ProcessImage(tmpPath, dstPath, filename, data.Width, data.Height, data.Depth); err != nil {
 			return fmt.Errorf("Failed to process image: "+err.Error())
 		}
+
+		texPaths = append(texPaths, dstPath)
 	}
+
+	gameInfo := &tools.GameInfo{
+		Title: data.Title,
+		Width: data.Width,
+		Height: data.Height,
+		Depth: data.Depth,
+		BoxType: data.BoxType,
+	}
+
+	log.Println("Making glb file")
+	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, false); err != nil {
+		return fmt.Errorf("Failed to process glb file: "+err.Error())
+	}
+	log.Println("Making loq glb file")
+	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, true); err != nil {
+		return fmt.Errorf("Failed to process glb file: "+err.Error())
+	}
+
+	tools.CleanupKTX2Files(gameDir)
 
 	return nil
 }
