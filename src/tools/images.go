@@ -7,9 +7,8 @@ import (
 	"strings"
 	"path/filepath"
 	"os/exec"
-	"errors"
+	_ "errors"
 
-	_ "golang.org/x/image/tiff"
 	"github.com/disintegration/imaging"
 	"github.com/sunshineplan/imgconv"
 )
@@ -29,36 +28,10 @@ const (
 
 func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHeight float32, gDepth float32) error {
 	fmt.Printf("Processing: %s\n", filename)
-	ext := strings.ToLower(filepath.Ext(filename))
 
-	if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
-		fmt.Printf("Found webp, skipping...\n")
-		return nil
-	}
-
-	img, err := imaging.Open(srcPath)
-	if err != nil && (ext == ".tif" || ext == ".tiff") {
-		fmt.Printf("TIFF decode failed, attempting ImageMagick conversion for %s\n", filename)
-		
-		pngPath := strings.TrimSuffix(srcPath, filepath.Ext(srcPath)) + ".png"
-		defer os.Remove(pngPath)
-		
-		cmd := exec.Command("convert", srcPath, pngPath)
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Warning: ImageMagick conversion failed for %s - %v\n", filename, err)
-			return nil
-		}
-		
-		// Use the converted PNG instead
-		srcPath = pngPath
-		
-		// Verify the conversion worked
-		img, err = imaging.Open(srcPath)
-		if err != nil {
-			fmt.Printf("Warning: Converted image still invalid %s - %v\n", filename, err)
-			return nil
-		}
-	}
+	// if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
+    //     return nil // Already exists
+    // }
 
 	// Determine thumbnail size
 	var width, height int
@@ -74,10 +47,7 @@ func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHei
 		height = int(gDepth * UpsizeRatio)
 	}
 
-	resized := imaging.Fit(img, width, height, imaging.Lanczos)
-
-	// Save as WebP using cwebp command
-	saveAsWebP(resized, dstPath)
+	processImageWithVips(srcPath, dstPath, width, height)
 
 	return nil
 }
@@ -92,4 +62,25 @@ func saveAsWebP(img image.Image, path string) error {
 
 	// Use imgconv to save as WebP with quality setting
 	return imgconv.Write(outFile, img, &imgconv.FormatOption{Format: imgconv.WEBP})
+}
+
+func processImageWithVips(srcPath, dstPath string, width, height int) error {
+    ext := strings.ToLower(filepath.Ext(srcPath))
+    
+    if ext == ".tif" || ext == ".tiff" {
+        // vips can output WebP directly and handles the resize
+        cmd := exec.Command("vipsthumbnail", srcPath,
+            "-o", dstPath+"[Q=80]",
+            "-s", fmt.Sprintf("%dx%d", width, height),
+        )
+        return cmd.Run()
+    }
+    
+    // For non-TIFF, use your existing imaging pipeline
+    img, err := imaging.Open(srcPath)
+    if err != nil {
+        return err
+    }
+    resized := imaging.Fit(img, width, height, imaging.Lanczos)
+    return saveAsWebP(resized, dstPath)
 }

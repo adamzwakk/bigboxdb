@@ -7,7 +7,7 @@ pkgs.mkShell {
 
     pkgs.just
     pkgs.lazysql
-    pkgs.imagemagick
+    pkgs.vips
   ];
 
   shellHook = ''

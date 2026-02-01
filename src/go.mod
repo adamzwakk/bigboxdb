@@ -3,29 +3,35 @@ module github.com/adamzwakk/bigboxdb-server
 go 1.25.5
 
 require (
+	github.com/dchest/uniuri v1.2.0
+	github.com/disintegration/imaging v1.6.2
+	github.com/gin-gonic/gin v1.11.0
+	github.com/gosimple/slug v1.15.0
+	github.com/joho/godotenv v1.5.1
+	github.com/sunshineplan/imgconv v1.1.14
+	gorm.io/driver/mysql v1.6.0
+	gorm.io/gorm v1.31.1
+)
+
+require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/HugoSmits86/nativewebp v1.1.0 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/dchest/uniuri v1.2.0 // indirect
-	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
-	github.com/gin-gonic/gin v1.11.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
-	github.com/gosimple/slug v1.15.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/tiff v1.0.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -39,7 +45,6 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/sunshineplan/imgconv v1.1.14 // indirect
 	github.com/sunshineplan/pdf v1.0.7 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
@@ -55,6 +60,4 @@ require (
 	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gorm.io/driver/mysql v1.6.0 // indirect
-	gorm.io/gorm v1.31.1 // indirect
 )
