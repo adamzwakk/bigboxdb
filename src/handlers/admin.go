@@ -38,6 +38,7 @@ type ImportData struct{
 	MobygamesId		int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
+	WorthFrontView	*bool	`json:"worth_front_view,omitempty"`
 }
 
 type FirstString string
@@ -135,6 +136,11 @@ func AdminImport(c *gin.Context){
 		userName = *data.ContributedBy
 	}
 
+	worthFront := true
+	if data.WorthFrontView != nil {
+		worthFront = *data.WorthFrontView
+	}
+
 	var user models.User
 	if err := database.FirstOrCreate(&user, models.User{Name: userName}).Error; err != nil {
 		c.String(http.StatusInternalServerError, "Could not find/create User")
@@ -146,10 +152,10 @@ func AdminImport(c *gin.Context){
 	}
 
 	var dev models.Developer
-	database.FirstOrCreate(&dev, models.Developer{Name: string(data.Developer)})
+	database.Where(models.Developer{Name: string(data.Developer)}).Assign(models.Developer{Slug: slug.Make(string(data.Developer))}).FirstOrCreate(&dev)
 
 	var pub models.Publisher
-	database.FirstOrCreate(&pub, models.Publisher{Name: string(data.Publisher)})
+	database.Where(models.Publisher{Name: string(data.Publisher)}).Assign(models.Publisher{Slug: slug.Make(string(data.Publisher))}).FirstOrCreate(&pub)
 
 	game := models.Game{
 		Title:			data.Title,
@@ -169,6 +175,7 @@ func AdminImport(c *gin.Context){
 				Width:		data.Width,
 				Height:		data.Height,
 				Depth:		data.Depth,
+				WorthFrontView:	worthFront,
 
 				UserID:		user.ID,
 			},

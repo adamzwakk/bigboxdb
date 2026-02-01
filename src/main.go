@@ -54,6 +54,9 @@ func main() {
 			g := a.Group("/games")
 			g.GET("/all", handlers.GamesAll)
 
+			v := a.Group("/variants")
+			v.GET("/all", handlers.VariantsAll)
+
 			ad := a.Group("/admin")
 			ad.Use(handlers.AuthMiddleware())
 			{
