@@ -1,7 +1,8 @@
 db-data
 dist
 .env
+**/uploads
 
-src/tools
+src/tools/make-objs
 
 !src/db

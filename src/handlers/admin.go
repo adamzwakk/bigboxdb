@@ -5,19 +5,24 @@ import (
 	"bytes"
     "io"
 	"os"
+	"os/exec"
     // "log"
+	"strings"
 	"fmt"
-	// "slices"
+	"slices"
 	"net/http"
-	// "path/filepath"
+	"path/filepath"
 	"encoding/json"
 
+	_ "golang.org/x/image/tiff"
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm/clause"
+	"github.com/disintegration/imaging"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb-server/tools"
 )
 
 type ImportData struct{
@@ -67,7 +72,8 @@ func (f *FirstString) UnmarshalJSON(data []byte) error {
 }
 
 var destDir = "./uploads/scans/"
-var allowedFiles = []string{"back.webp", "bottom.webp", "box.glb", "box-low.glb", "front.webp", "info.json", "left.webp", "right.webp", "top.webp"}
+// var allowedFiles = []string{"back.webp", "bottom.webp", "box.glb", "box-low.glb", "front.webp", "info.json", "left.webp", "right.webp", "top.webp"}
+var allowedFiles = []string{"back.tif", "bottom.tif", "box.glb", "box-low.glb", "front.tif", "info.json", "left.tif", "right.tif", "top.tif"}
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
@@ -138,8 +144,6 @@ func AdminImport(c *gin.Context){
 }
 
 func ImportZip(zipData []byte) error {
-	os.MkdirAll(destDir, os.ModePerm)
-
 	reader, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
     if err != nil {
         return fmt.Errorf("invalid zip file: %w", err)
@@ -234,6 +238,74 @@ func ImportZip(zipData []byte) error {
 			"description",
 		}),
 	}).Create(&game)
+
+	// process images
+	for _, zf := range reader.File {
+		if zf.Name == "info.json" || zf.FileInfo().IsDir() {
+			continue
+		}
+		if !slices.Contains(allowedFiles, zf.Name) {
+			return fmt.Errorf("Failed to read approve "+zf.Name)
+		}
+
+		filename := filepath.Base(zf.Name)
+		ext := strings.ToLower(filepath.Ext(zf.Name))
+
+		gameDir := destDir+slugTitle
+		dstPath := gameDir+"/"+filename
+		os.MkdirAll(gameDir, os.ModePerm)
+		dstPath = strings.ReplaceAll(dstPath, ".tif", ".webp")
+
+		rc, err := zf.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		tmpFile, err := os.CreateTemp("", "zipimg-*"+filepath.Ext(zf.Name))
+		if err != nil {
+			return err
+		}
+		tmpPath := tmpFile.Name()
+		defer os.Remove(tmpPath)
+		
+		// Copy data
+		if _, err := io.Copy(tmpFile, rc); err != nil {
+			tmpFile.Close()
+			return err
+		}
+		tmpFile.Close()
+		
+		// Try to open and validate
+		_, err = imaging.Open(tmpPath)
+		if err != nil && (ext == ".tif" || ext == ".tiff") {
+			fmt.Printf("TIFF decode failed, attempting ImageMagick conversion for %s\n", zf.Name)
+			
+			pngPath := strings.TrimSuffix(tmpPath, filepath.Ext(tmpPath)) + ".png"
+			defer os.Remove(pngPath)
+			
+			cmd := exec.Command("convert", tmpPath, pngPath)
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("Warning: ImageMagick conversion failed for %s - %v\n", zf.Name, err)
+				return nil
+			}
+			
+			// Use the converted PNG instead
+			tmpPath = pngPath
+			
+			// Verify the conversion worked
+			_, err = imaging.Open(tmpPath)
+			if err != nil {
+				fmt.Printf("Warning: Converted image still invalid %s - %v\n", zf.Name, err)
+				return nil
+			}
+		}
+
+		// process assets
+		if err := tools.ProcessImage(tmpPath, dstPath, filename, data.Width, data.Height, data.Depth); err != nil {
+			return fmt.Errorf("Failed to process image: "+err.Error())
+		}
+	}
 
 	return nil
 }

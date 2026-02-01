@@ -7,6 +7,7 @@ pkgs.mkShell {
 
     pkgs.just
     pkgs.lazysql
+    pkgs.imagemagick
   ];
 
   shellHook = ''
