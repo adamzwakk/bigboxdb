@@ -12,7 +12,7 @@ import (
 )
 
 type VariantResponse struct {
-	ID			uint	`json:"variant_id"`
+	ID			uint	`json:"id"`
 	GameID		uint	`json:"game_id"`
 	GameTitle	string	`json:"title"`
 	VariantDesc	string	`json:"variant"`
