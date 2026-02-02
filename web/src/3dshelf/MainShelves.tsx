@@ -24,13 +24,11 @@ export default function MainShelves() {
     const pathname = useLocation().pathname;
     const params = useParams()
     const context = useShelvesData()
-    console.log(context)
 
     const { allGames, shelfLength, setShelfLength } = context;
     
     // Add local state to track the current shelf length for rendering
     const [currentShelfLength, setCurrentShelfLength] = useState(shelfLength);
-
 
     useEffect(() => {
         if(allGames && allGames.length) {

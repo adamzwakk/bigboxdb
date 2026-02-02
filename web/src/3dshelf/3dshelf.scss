@@ -31,7 +31,7 @@ body{
     background: linear-gradient(323deg,rgba(2,0,36,0) 32%,rgba(81,81,154,.499) 73%,rgba(9,9,66,.908));
 }
 
-#app > *{
+#root > *{
     position: fixed !important;
     width:100vw;
     height:100vh;
