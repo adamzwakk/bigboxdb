@@ -100,44 +100,7 @@ func AdminImport(c *gin.Context){
     
     c.JSON(http.StatusOK, gin.H{"message": "OK"})
 
-	//c.JSON(http.StatusOK, data)
 	return
-
-	// Image Process
-	// for _, zf := range zipReader.File {
-	// 	if zf.Name == "info.json" {
-	// 		continue // we already processed you!
-	// 	}
-	// 	if(!slices.Contains(allowedFiles, zf.Name)){
-	// 		c.String(http.StatusBadRequest, "Failed to read approve "+zf.Name)
-	// 		return
-	// 	}
-	// 	//log.Println("Processing:", zf.Name)
-	// 	rc, err := zf.Open()
-	// 	if err != nil {
-	// 		log.Println("Failed to open file in zip:", err)
-	// 		continue
-	// 	}
-
-	// 	outPath := filepath.Join(destDir, zf.Name)
-
-	// 	outFile, err := os.Create(outPath)
-    //     if err != nil {
-    //         log.Println("Failed to create file:", err)
-    //         rc.Close()
-    //         continue
-    //     }
-
-    //     // Copy contents
-    //     _, err = io.Copy(outFile, rc)
-    //     if err != nil {
-    //         log.Println("Failed to copy file contents:", err)
-    //     }
-	// 	rc.Close()
-	// 	outFile.Close()
-	// }
-
-	c.String(http.StatusOK, "Zip processed successfully")
 }
 
 func ImportZip(zipData []byte) error {

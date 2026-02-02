@@ -2,7 +2,7 @@ FROM golang:1.25 AS builder
 
 WORKDIR /app
 
-COPY src ./src
+COPY server ./src
 COPY .env ./.env
 
 WORKDIR /app/src
@@ -22,6 +22,7 @@ COPY --from=builder /app/.env /.env
 EXPOSE 8080
 USER nonroot:nonroot
 
+## Prod vars, always set host to the maria docker etc
 ENV GIN_MODE=release
 ENV MYSQL_HOST=mariadb
 
