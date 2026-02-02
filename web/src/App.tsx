@@ -1,12 +1,15 @@
 import { BrowserRouter } from 'react-router'
 import MainShelves from './3dshelf/MainShelves'
+import ShelvesProvider from './3dshelf/ShelvesProvider'
 
 function App() {
 
   return (
-    <BrowserRouter>
-        <MainShelves />
-    </BrowserRouter>
+    <ShelvesProvider>
+        <BrowserRouter>
+            <MainShelves />
+        </BrowserRouter>
+    </ShelvesProvider>
   )
 }
 
