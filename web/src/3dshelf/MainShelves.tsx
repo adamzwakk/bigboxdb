@@ -2,7 +2,7 @@ import '../globals.css'
 import './3dshelf.scss'
 
 import type { Game3D, ShelfProps } from "@/lib/types";
-import { filter, forEach, map } from "lodash";
+import { filter, forEach } from "lodash";
 import { BoxShelfDirection } from "@/lib/enums";
 import { useStore } from '@/lib/Store';
 
@@ -36,7 +36,6 @@ export default function MainShelves() {
     },[allGames,stagedOptions])
 
     const filterGames = useCallback(function() {
-        let g:any
         if(allGames.length)
         {
             let games = structuredClone(allGames)

@@ -1,7 +1,3 @@
-import {has,forEach, isNumber} from "lodash"
-import { ImageOrder } from "./enums";
-import { BoxSides } from "./types";
-
 export function config()
 {
 	return {

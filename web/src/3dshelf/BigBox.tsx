@@ -1,6 +1,6 @@
 import {useLoader, useThree} from '@react-three/fiber'
-import React, {Suspense, startTransition, useEffect, useMemo, useRef, useState} from "react";
-import {find,isEmpty} from "lodash";
+import React, {Suspense, useEffect, useMemo, useRef, useState} from "react";
+import {find} from "lodash";
 import { useGesture } from '@use-gesture/react'
 import gsap from 'gsap';
 import * as THREE from 'three';
@@ -408,7 +408,6 @@ function BigBox({position, g, onShelf}:BigBoxProps)
             return
         }
         const gatefold = gatefoldRef.current;
-        const group = groupRef.current;
         if(gatefoldOpen)
         {
             if(VerticalGatefoldTypes.has(g.box_type)) {

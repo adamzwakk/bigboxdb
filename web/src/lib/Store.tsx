@@ -33,31 +33,31 @@ export const useStore = create<BigBoxDBState>((set) => ({
     stagedOptions:{shelfLength:100, boxTypes:[0]},
 
     setShelfNum: (e) => {
-        set((state) => ({
+        set(() => ({
             shelfNum: e
         }));
     },
 
     setGoToSearchedGame: (e: Game|SearchIndex|null) => {
-        set((state) => ({
+        set(() => ({
             goToSearchedGame: e
         }));
     },
 
     setControlsEnable: (e) => {
-        set((state) => ({
+        set(() => ({
             controlsEnable: e
         }));
     },
 
     setShouldHover: (g: Array<SearchIndex>) => {
-        set((state) => ({
+        set(() => ({
             shouldHover: g
         }));
     },
 
     setActiveGame: (g: Game3D|null) => {
-        set((state) => ({
+        set(() => ({
             activeGame: g
         }));
     },
@@ -65,13 +65,13 @@ export const useStore = create<BigBoxDBState>((set) => ({
     setIsDragging: (dragging: boolean) => set({ isDragging: dragging }),
 
     setActiveShelves: (e) => {
-        set((state) => ({
+        set(() => ({
             activeShelves: e
         }));
     },
 
     setStagedOptions: (e) => {
-        set((state) => ({
+        set(() => ({
             stagedOptions: e
         }));
     },

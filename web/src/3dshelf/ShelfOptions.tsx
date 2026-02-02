@@ -1,13 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react";
-import { useStore } from "../../Store";
-import { StatsProps } from "@/lib/types";
-import React from 'react'
+import { useStore } from "@/lib/Store";
+import type { StatsProps } from "@/lib/types";
 import Select from 'react-select'
-import Link from "next/link";
 import { useShelvesData } from "./ShelvesProvider";
-import { useParams } from "next/navigation";
+import { useParams } from "react-router";
 
 export default function ShelfOptions() {
     const {stagedOptions, setStagedOptions} = useStore();
@@ -110,15 +108,15 @@ export default function ShelfOptions() {
                     />
                 </div>}
                 {developers && <div className="mt-3">
-                    <label htmlFor="" className="text-white">Developer <Link onClick={() => setDeveloper('')} className="text-white underline" href="/shelves">(Clear)</Link></label>
+                    <label htmlFor="" className="text-white">Developer <a onClick={() => setDeveloper('')} className="text-white underline" href="/shelves">(Clear)</a></label>
                     <ul className="h-[200px] overflow-y-scroll border-1 border-white">
-                        {developers.map((s:any, index:number) => <li key={index}><Link onClick={() => {setDeveloper(s.slug); setPublisher(''); }} className={(developer == s.slug ? "bg-white text-black" : "text-white" )+" py-1 px-2 block border-b-1 w-full border-white"} href={"/shelves/developer/"+s.slug} dangerouslySetInnerHTML={{__html:s.name+' ('+s.count+')'}}></Link></li> )}
+                        {developers.map((s:any, index:number) => <li key={index}><a onClick={() => {setDeveloper(s.slug); setPublisher(''); }} className={(developer == s.slug ? "bg-white text-black" : "text-white" )+" py-1 px-2 block border-b-1 w-full border-white"} href={"/shelves/developer/"+s.slug} dangerouslySetInnerHTML={{__html:s.name+' ('+s.count+')'}}></a></li> )}
                     </ul>
                 </div>}
                 {publishers && <div className="mt-3">
-                    <label htmlFor="" className="text-white">Publisher <Link onClick={() => setPublisher('')} className="text-white underline" href="/shelves">(Clear)</Link></label>
+                    <label htmlFor="" className="text-white">Publisher <a onClick={() => setPublisher('')} className="text-white underline" href="/shelves">(Clear)</a></label>
                     <ul className="h-[200px] overflow-y-scroll border-1 border-white">
-                        {publishers.map((s:any, index:number) => <li key={index}><Link onClick={() => {setPublisher(s.slug); setDeveloper(''); }} className={(publisher == s.slug ? "bg-white text-black" : "text-white" )+" py-1 px-2 block border-b-1 w-full border-white"} href={"/shelves/publisher/"+s.slug} dangerouslySetInnerHTML={{__html:s.name+' ('+s.count+')'}}></Link></li> )}
+                        {publishers.map((s:any, index:number) => <li key={index}><a onClick={() => {setPublisher(s.slug); setDeveloper(''); }} className={(publisher == s.slug ? "bg-white text-black" : "text-white" )+" py-1 px-2 block border-b-1 w-full border-white"} href={"/shelves/publisher/"+s.slug} dangerouslySetInnerHTML={{__html:s.name+' ('+s.count+')'}}></a></li> )}
                     </ul>
                 </div>}
                 <a href="#" onClick={() => applySettings()} className="text-black text-center bg-white inline-block border-white-1 border-1 p-2 my-5">Apply Settings</a>
