@@ -4,11 +4,12 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.go
     pkgs.nodejs_22
+    
     pkgs.ktx-tools
+    pkgs.vips
 
     pkgs.just
     pkgs.lazysql
-    pkgs.vips
   ];
 
   shellHook = ''

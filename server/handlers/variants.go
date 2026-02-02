@@ -12,21 +12,23 @@ import (
 )
 
 type VariantResponse struct {
-	ID			uint
-	GameID		uint
-	GameTitle	string
-	VariantDesc	string
-	Slug		string
-	Year		int
-	Platform	string
-	W			float32
-	H			float32
-	D			float32
-	WorthFrontView	bool
-	GatefoldTransparent	bool
-	BoxType		uint
-	Developer	string
-	Publisher	string
+	ID			uint	`json:"variant_id"`
+	GameID		uint	`json:"game_id"`
+	GameTitle	string	`json:"title"`
+	VariantDesc	string	`json:"variant"`
+	Slug		string	`json:"slug"`
+	Year		int		`json:"year"`
+	Platform	string	`json:"platform"`
+	W			float32	`json:"w"`
+	H			float32	`json:"h"`	
+	D			float32	`json:"d"`
+	Direction	int		`json:"dir"`
+	WorthFrontView	bool	`json:"worth_front_view"`
+	GatefoldTransparent	bool	`json:"gatefold_transparent"`
+	BoxType		uint	`json:"box_type"`
+	Developer	string	`json:"developer"`
+	Publisher	string	`json:"publisher"`
+	TexturePath	string	`json:"textureFileName"`
 }
 
 func VariantsAll(c *gin.Context){
@@ -48,6 +50,10 @@ func VariantsAll(c *gin.Context){
 
 	var resp []VariantResponse
 	for _, v := range variants {
+		dir := 0
+		if v.BoxType.ID == 3 {
+			dir = 1
+		}
 		resp = append(resp, VariantResponse{
 			ID:            v.ID,
 			GameID:		v.Game.ID,
@@ -63,7 +69,9 @@ func VariantsAll(c *gin.Context){
 			W:		v.Width,
 			H:		v.Height,
 			D:		v.Depth,
+			Direction: dir,
 			BoxType:	v.BoxType.ID,
+			TexturePath: fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "box.glb"),
 		})
 	}
 

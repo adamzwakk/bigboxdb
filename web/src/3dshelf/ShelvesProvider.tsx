@@ -19,7 +19,7 @@ export default function ShelvesProvider({
   const [shelfLength, setShelfLength] = useState(IsTouchDevice() ? 40 : 100)
 
   useEffect(() => {
-    fetch('/api/games/all')
+    fetch('/api/variants/all')
       .then(res => res.json())
       .then((data: Game3D[]) => {
           setAllGames(data)

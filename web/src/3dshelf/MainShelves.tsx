@@ -13,7 +13,6 @@ import { AdaptiveDpr, AdaptiveEvents, Bvh } from '@react-three/drei';
 import ShelfControls from './ShelfControls';
 import Shelf from './Shelf';
 import { Group } from 'three';
-// import { useParams, usePathname } from 'next/navigation';
 import { useShelvesData } from './ShelvesProvider';
 import { useLocation, useParams } from 'react-router';
 
@@ -41,6 +40,7 @@ export default function MainShelves() {
         if(allGames.length)
         {
             let games = structuredClone(allGames)
+
             if(pathname.includes('/developer/') && params.devSlug)
             {
                 let dslug = params.devSlug
@@ -60,10 +60,11 @@ export default function MainShelves() {
                 });
             }
 
-            if(stagedOptions.boxTypes.length)
-            {
-                games = filter(games, function(o) {  return stagedOptions.boxTypes.includes(o.box_type); });
-            }
+            // if(stagedOptions.boxTypes.length)
+            // {
+            //     games = filter(games, function(o) {  return stagedOptions.boxTypes.includes(o.box_type); });
+            // }
+
 
             if(games)
             {
@@ -110,8 +111,6 @@ export default function MainShelves() {
 
         forEach(cleaned, function(g:Game3D)
         {
-            // DON'T check height here anymore
-
             const gameSeed = g.slug;            
             let chance:boolean = lastBox && lastBox.dir !== BoxShelfDirection.front && Math.random() < 0.10;
             if(chance && g.worth_front_view === true && (activeWidth+g.w) < shelfLength-2)
@@ -148,7 +147,6 @@ export default function MainShelves() {
             activeWidth += g.sd;
             g.shelfX = shelfX;
             lastBox = g;
-
             if(activeWidth < shelfLength-padding.x || cleaned.length === 1)
             { 
                 if(cleaned.length === 1)
@@ -203,6 +201,12 @@ export default function MainShelves() {
                 width: shelf.width  // Use the width stored with this shelf
             };
         });
+        
+        if(isNaN(shelfLength))
+        {
+            // just so its SOMETHING
+            shelfLength = 10
+        }
 
         return { shelves: finalShelves, finalShelfLength: shelfLength }
     }

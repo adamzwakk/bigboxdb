@@ -2,7 +2,6 @@ import {useLoader, useThree} from '@react-three/fiber'
 import React, {Suspense, startTransition, useEffect, useMemo, useRef, useState} from "react";
 import {find,isEmpty} from "lodash";
 import { useGesture } from '@use-gesture/react'
-// import { useParams } from 'next/navigation'
 import gsap from 'gsap';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -13,6 +12,7 @@ import {useStore} from "@/lib/Store";
 import {IsTouchDevice} from "@/lib/Utils";
 import type { Game3D } from '@/lib/types';
 import { AllGatefoldTypes, BigBoxTypes, BoxShelfDirection, VerticalGatefoldTypes } from '@/lib/enums';
+import { useParams } from 'react-router';
 
 type BigBoxProps = {
     position: {x:number, y:number, z:number},
@@ -504,7 +504,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
         {
             window.history.replaceState(null, '', '/shelves/game/'+g.slug)
             document.title = 'BigBoxDB | '+g.title
-            sendGTMEvent({ event: 'page_view', pagePath: '/shelves/game/'+g.slug })
+            // sendGTMEvent({ event: 'page_view', pagePath: '/shelves/game/'+g.slug })
         }
     }
 

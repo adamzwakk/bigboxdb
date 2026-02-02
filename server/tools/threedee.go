@@ -25,6 +25,14 @@ const (
 	OutputFormat        = "glb"
 )
 
+type GameInfo struct {
+	Title		string	 `json:"title"`
+	Width       float32  `json:"width"`
+	Height      float32  `json:"height"`
+	Depth       float32  `json:"depth"`
+	BoxType     uint      `json:"box_type"`
+}
+
 // AtlasResult holds texture atlas packing results
 type AtlasResult struct {
 	Atlas              image.Image

@@ -27,5 +27,8 @@ build-release:
 get-admin-key:
     podman compose exec mariadb mariadb -D "${MYSQL_DATABASE}" -u ${MYSQL_USER} -p${MYSQL_PASSWORD} -N -s -e "select api_key from users where id = 1;"
 
+web-install:
+    cd web && npm install
+
 web-dev:
     cd web && npm run dev

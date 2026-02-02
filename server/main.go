@@ -41,20 +41,14 @@ func main() {
 	} else if slices.Contains(args, "import") {
 		zpath := args[1]
 
-		zipData, err := os.ReadFile(zpath)
-		if err != nil {
-			log.Fatal("failed to read file: %w")
-			return
-		}
-
-		if err := handlers.ImportZip(zipData); err != nil {
+		if err := handlers.ImportLocal(zpath); err != nil {
 			log.Fatal(err.Error())
 			return
 		}
 	} else if slices.Contains(args, "host") {
 		// MAIN WEB SERVER
 		r := gin.Default()
-		r.Static("/uploads", "./uploads")
+		r.Static("/scans", "./uploads/scans")
 		{
 			a := r.Group("/api")
 
@@ -66,6 +60,12 @@ func main() {
 
 			g := a.Group("/games")
 			g.GET("/all", handlers.GamesAll)
+
+			dev := a.Group("/developers")
+			dev.GET("/all", handlers.GamesAll)
+
+			pub := a.Group("/publishers")
+			pub.GET("/all", handlers.GamesAll)
 
 			v := a.Group("/variants")
 			v.GET("/all", handlers.VariantsAll)

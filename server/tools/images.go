@@ -13,14 +13,6 @@ import (
 	"github.com/sunshineplan/imgconv"
 )
 
-type GameInfo struct {
-	Title		string	 `json:"title"`
-	Width       float32  `json:"width"`
-	Height      float32  `json:"height"`
-	Depth       float32  `json:"depth"`
-	BoxType     uint      `json:"box_type"`
-}
-
 const (
 	UpsizeRatio         = 80
 	UpsizeRatioLow      = 60
