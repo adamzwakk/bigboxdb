@@ -80,9 +80,9 @@ func main() {
 		}
 
 		r.NoRoute(handlers.ServeIndex)
-		r.Static("/assets", "./dist/assets")
-		r.Static("/img", "./dist/img")
-		r.Static("/basis", "./dist/basis")
+		r.Static("/assets", "./web/assets")
+		r.Static("/img", "./web/img")
+		r.Static("/basis", "./web/basis")
 		r.Static("/scans", "./uploads/scans")
 
 		 r.Use(func(c *gin.Context) {

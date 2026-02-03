@@ -8,24 +8,25 @@ import (
     "github.com/gin-gonic/gin"
 )
 
+// This mostly exists for the docker container hosting reasons but you could use it I guess
 func ServeIndex(c *gin.Context) {
     path := c.Request.URL.Path
 
-    if strings.HasPrefix(path, "/games/") {
-        slug := strings.TrimPrefix(path, "/games/")
+    if strings.HasPrefix(path, "/game/") {
+        slug := strings.TrimPrefix(path, "/game/")
         if m, ok := GetMeta(slug); ok {
             serveWithMeta(c, m)
             return
         }
     }
 
-    c.File("./dist/index.html")
+    c.File("./web/index.html")
 }
 
 func serveWithMeta(c *gin.Context, m Meta) {
-    html, err := os.ReadFile("./dist/index.html")
+    html, err := os.ReadFile("./web/index.html")
     if err != nil {
-        c.File("./dist/index.html")
+        c.File("./web/index.html")
         return
     }
 

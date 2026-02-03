@@ -23,6 +23,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    outDir: '../server/web',
+    emptyOutDir: true, // also necessary
+  },
   server:{
     proxy:{
          '/api': 'http://localhost:8080',

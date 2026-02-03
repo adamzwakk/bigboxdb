@@ -1,10 +1,10 @@
 set dotenv-load := true
 
-up:
-    podman compose up -d
+up-services:
+    podman compose up -d mariadb redis
 
-down:
-    podman compose down
+down-services:
+    podman compose down mariadb redis
 
 lsql:
     lazysql "mariadb://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}"
@@ -35,3 +35,6 @@ web-dev:
 
 web-build:
     cd web && npm run build
+
+prod-build:
+    just web-build && podman compose build server && podman compose up -d

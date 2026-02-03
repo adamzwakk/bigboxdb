@@ -3,6 +3,6 @@ dist
 .env
 **/uploads
 
-src/tools/make-objs
+server/web
 
 !src/db

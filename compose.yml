@@ -9,7 +9,7 @@ services:
     image: bigboxdb-api:latest
     container_name: bigboxdb-api
     volumes:
-      - ./web/dist:/app/dist:ro
+      - ./server/web:/app/web:ro
       - ./server/uploads/scans:/app/uploads/scans
     ports:
       - "8080:8080"
