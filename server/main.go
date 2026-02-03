@@ -23,6 +23,8 @@ func main() {
 
 	args := os.Args[1:]
 
+	db.InitRedis()
+
 	if slices.Contains(args, "migrate") {
 		// SEED/MIGRATE DB
 		database := db.GetDB()
@@ -48,7 +50,7 @@ func main() {
 	} else if slices.Contains(args, "host") {
 		// MAIN WEB SERVER
 		r := gin.Default()
-		r.Static("/scans", "./uploads/scans")
+		
 		{
 			a := r.Group("/api")
 
@@ -76,6 +78,17 @@ func main() {
 				ad.PUT("/import", handlers.AdminImport)
 			}
 		}
+
+		r.NoRoute(handlers.ServeIndex)
+		r.Static("/assets", "./dist/assets")
+		r.Static("/img", "./dist/img")
+		r.Static("/basis", "./dist/basis")
+		r.Static("/scans", "./uploads/scans")
+
+		 r.Use(func(c *gin.Context) {
+			c.Header("Content-Security-Policy", "worker-src 'self' blob:;")
+			c.Next()
+		})
 
 		r.Run(":8080")
 	}

@@ -32,3 +32,6 @@ web-install:
 
 web-dev:
     cd web && npm run dev
+
+web-build:
+    cd web && npm run build

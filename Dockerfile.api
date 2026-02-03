@@ -25,5 +25,6 @@ USER nonroot:nonroot
 ## Prod vars, always set host to the maria docker etc
 ENV GIN_MODE=release
 ENV MYSQL_HOST=mariadb
+ENV REDIS_ADDR=redis:6379
 
 CMD ["/app/server","host"]
