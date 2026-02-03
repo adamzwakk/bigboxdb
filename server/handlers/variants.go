@@ -42,7 +42,7 @@ type queryOptions struct {
 }
 
 func VariantsAll(c *gin.Context){
-	var o = queryOptions{Order:"", Limit:0, Offset:0, WithDeveloper:true, WithPublisher:true} 
+	var o = queryOptions{Order:"Game.Title asc", Limit:0, Offset:0, WithDeveloper:true, WithPublisher:true} 
 	var variants = getVariants(o)
 	c.JSON(http.StatusOK, variants)
 }
@@ -58,9 +58,8 @@ func getVariants(options queryOptions) []VariantResponse{
 
 	var variants []models.Variant
 
-	q := d.Preload("Game", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "Title", "Slug", "Year", "PlatformID")
-	}).Preload("BoxType", func(db *gorm.DB) *gorm.DB {
+	q := d.Joins("Game", d.Select("id", "Title", "Slug", "Year", "PlatformID")).
+	Preload("BoxType", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	}).Preload("Game.Platform", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
