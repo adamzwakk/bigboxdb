@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -26,27 +27,66 @@ type VariantResponse struct {
 	WorthFrontView	bool	`json:"worth_front_view"`
 	GatefoldTransparent	bool	`json:"gatefold_transparent"`
 	BoxType		uint	`json:"box_type"`
-	Developer	string	`json:"developer"`
-	Publisher	string	`json:"publisher"`
+	Developer	string	`json:"developer,omitempty"`
+	Publisher	string	`json:"publisher,omitempty"`
 	TexturePath	string	`json:"textureFileName"`
+	AddedOn		time.Time	`json:"created_at"`
+}
+
+type queryOptions struct {
+	Order			string
+	Limit			int
+	Offset			int
+	WithDeveloper	bool
+	WithPublisher	bool
 }
 
 func VariantsAll(c *gin.Context){
+	var o = queryOptions{Order:"", Limit:0, Offset:0, WithDeveloper:true, WithPublisher:true} 
+	var variants = getVariants(o)
+	c.JSON(http.StatusOK, variants)
+}
+
+func VariantsLatest(c *gin.Context){
+	var o = queryOptions{Order:"created_at desc", Limit:20, Offset:0} 
+	var variants = getVariants(o)
+	c.JSON(http.StatusOK, variants)
+}
+
+func getVariants(options queryOptions) []VariantResponse{
 	d := db.GetDB()
 
 	var variants []models.Variant
 
-	d.Preload("Developer", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "name")
-	}).Preload("Publisher", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "name")
-	}).Preload("Game", func(db *gorm.DB) *gorm.DB {
+	q := d.Preload("Game", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Title", "Slug", "Year", "PlatformID")
 	}).Preload("BoxType", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	}).Preload("Game.Platform", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
-	}).Find(&variants)
+	})
+
+	if options.WithDeveloper {
+		q = q.Preload("Developer", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		})
+	}
+
+	if options.WithPublisher {
+		q = q.Preload("Publisher", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		})
+	}
+
+	if options.Order != "" {
+		q = q.Order(options.Order)
+	}
+
+	if options.Limit != 0 {
+		q = q.Limit(options.Limit)
+	}
+
+	q.Find(&variants)
 
 	var resp []VariantResponse
 	for _, v := range variants {
@@ -59,7 +99,7 @@ func VariantsAll(c *gin.Context){
 			GameID:		v.Game.ID,
 			GameTitle:	v.Game.Title,
 			VariantDesc:	v.Description,
-			Slug:	fmt.Sprintf("/%s/%d", v.Game.Slug, v.ID),
+			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
 			Year:		v.Game.Year,
 			Platform:	v.Game.Platform.Name,
 			Developer: v.Developer.Name,
@@ -72,8 +112,9 @@ func VariantsAll(c *gin.Context){
 			Direction: dir,
 			BoxType:	v.BoxType.ID,
 			TexturePath: fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "box.glb"),
+			AddedOn: v.CreatedAt,
 		})
 	}
 
-	c.JSON(http.StatusOK, resp)
+	return resp
 }

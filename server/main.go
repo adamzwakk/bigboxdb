@@ -71,6 +71,7 @@ func main() {
 
 			v := a.Group("/variants")
 			v.GET("/all", handlers.VariantsAll)
+			v.GET("/latest", handlers.VariantsLatest)
 
 			ad := a.Group("/admin")
 			ad.Use(handlers.AuthMiddleware())
