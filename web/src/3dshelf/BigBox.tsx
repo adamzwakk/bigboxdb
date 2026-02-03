@@ -313,7 +313,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
                 ease: "power2.out"
             });
         }
-        if(!onShelf || (params && params.gameSlug && params.gameSlug == g.slug && !active))
+        if(!onShelf || (params && params.variantId && parseInt(params.variantId) == g.id && !active))
         {
             setTimeout(function(){
                 activateGame(null)

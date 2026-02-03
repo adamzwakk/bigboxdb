@@ -15,12 +15,7 @@ import (
 )
 
 func main() {
-	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load("./../.env"); err != nil {
-			log.Println("No .env file found (ok for production)")
-		}
-	}
-
+	godotenv.Load("./../.env")
 	args := os.Args[1:]
 
 	db.InitRedis()
@@ -72,6 +67,7 @@ func main() {
 			v := a.Group("/variants")
 			v.GET("/all", handlers.VariantsAll)
 			v.GET("/latest", handlers.VariantsLatest)
+			v.GET("/botd", handlers.VariantsRandom)
 
 			ad := a.Group("/admin")
 			ad.Use(handlers.AuthMiddleware())
@@ -81,15 +77,9 @@ func main() {
 		}
 
 		r.NoRoute(handlers.ServeIndex)
-		r.Static("/assets", "./web/assets")
-		r.Static("/img", "./web/img")
-		r.Static("/basis", "./web/basis")
-		r.Static("/scans", "./uploads/scans")
-
-		 r.Use(func(c *gin.Context) {
-			c.Header("Content-Security-Policy", "worker-src 'self' blob:;")
-			c.Next()
-		})
+		if os.Getenv("APP_ENV") != "production" {
+			r.Static("/scans", "./uploads/scans")
+		}
 
 		r.Run(":8080")
 	}

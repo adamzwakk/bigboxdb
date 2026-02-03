@@ -32,7 +32,10 @@ function App() {
             <Route path="/" element={<MainLayout />}>
                 <Route index element={<Home />} />
             </Route>
-            <Route path="/shelves" element={<ThreeDeeShelf />} />
+            <Route path="/shelves">
+                <Route index element={<ThreeDeeShelf />} />
+                <Route path="/shelves/game/:gameSlug/:variantId" element={<ThreeDeeShelf />} />
+            </Route>
         </Routes>
     </BrowserRouter>
   )

@@ -6,6 +6,7 @@ import Footer from "@/partials/Footer";
 export default function ThreeDeeShelf(){
     return (
         <ShelvesProvider>
+            <title>BigBoxDB | 3D Shelves</title>
             <div id="topLogo">
               <a href="/" className="logoContain mb-2 block">
                   <div className="mainLogo">

@@ -3,6 +3,7 @@ import '../globals.css'
 import './main.scss'
 import HomeBlurb from '@/partials/HomeBlurb'
 import Search from '@/partials/Search'
+import SingleGame from '@/partials/SingleGame'
 
 export default function Home() {
 
@@ -70,7 +71,7 @@ export default function Home() {
               </div>
               <div id="random-game" className='overflow-hidden relative w-full lg:w-80 lg:max-w-80 lg:flex-shrink-0 bg-black/50 p-5 h-150 max-w-6xl'>
                 <h2 className='text-[22px] text-center font-bold'>Box Of The Moment!</h2>
-                {/* <SingleGame slug={false} zd={-6} showFooter={true} /> */}
+                <SingleGame slug={false} zd={-6} showFooter={true} />
               </div>
             </div>
 

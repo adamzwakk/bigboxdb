@@ -39,7 +39,7 @@ func GetMeta(slug string) (Meta, bool) {
     m := Meta{
         Title:       v.Game.Title,
         Description: v.Description,
-        Image:       fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "box.glb"),
+        Image:       fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "front.webp"),
     }
     setMeta(slug, m)
 

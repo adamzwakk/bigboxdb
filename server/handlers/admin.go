@@ -327,11 +327,15 @@ func ImportFromSource(source FileSource) error {
 		BoxType: data.BoxType,
 	}
 
-	log.Println("Making glb file")
+	if os.Getenv("APP_ENV") != "production" {
+		log.Println("Making glb file")
+	}
 	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, false); err != nil {
 		return fmt.Errorf("failed to process glb file: " + err.Error())
 	}
-	log.Println("Making loq glb file")
+	if os.Getenv("APP_ENV") != "production" {
+		log.Println("Making low glb file")
+	}
 	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, true); err != nil {
 		return fmt.Errorf("failed to process glb file: " + err.Error())
 	}

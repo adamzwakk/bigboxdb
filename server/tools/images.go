@@ -19,7 +19,9 @@ const (
 )
 
 func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHeight float32, gDepth float32) error {
-	fmt.Printf("Processing: %s\n", filename)
+	if os.Getenv("APP_ENV") != "production" {
+		fmt.Printf("Processing: %s\n", filename)
+	}
 
 	// if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
     //     return nil // Already exists

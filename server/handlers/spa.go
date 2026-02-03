@@ -8,7 +8,6 @@ import (
     "github.com/gin-gonic/gin"
 )
 
-// This mostly exists for the docker container hosting reasons but you could use it I guess
 func ServeIndex(c *gin.Context) {
     path := c.Request.URL.Path
 
@@ -20,7 +19,7 @@ func ServeIndex(c *gin.Context) {
         }
     }
 
-    c.File("./web/index.html")
+    return
 }
 
 func serveWithMeta(c *gin.Context, m Meta) {

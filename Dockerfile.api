@@ -12,19 +12,20 @@ RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/server .
 
 # ---- Run stage ----
-FROM gcr.io/distroless/static:nonroot
+FROM alpine:3
+
+RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+RUN apk add --no-cache vips vips-tools ktx@testing
 
 WORKDIR /app
 
-COPY --from=builder /app/server /app/server
-COPY --from=builder /app/.env /.env
+COPY --from=builder /app/server /app/bin/server
+COPY --from=builder /app/.env /app/.env
 
 EXPOSE 8080
-USER nonroot:nonroot
+RUN addgroup -S bbgroup && adduser -S bbuser -G bbgroup
+RUN chown -R bbuser:bbgroup /app
 
-## Prod vars, always set host to the maria docker etc
-ENV GIN_MODE=release
-ENV MYSQL_HOST=mariadb
-ENV REDIS_ADDR=redis:6379
+USER bbuser
 
-CMD ["/app/server","host"]
+CMD ["/app/bin/server","host"]

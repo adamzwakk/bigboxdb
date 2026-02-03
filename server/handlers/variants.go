@@ -53,6 +53,12 @@ func VariantsLatest(c *gin.Context){
 	c.JSON(http.StatusOK, variants)
 }
 
+func VariantsRandom(c *gin.Context){
+	var o = queryOptions{Order:"rand()", Limit:1, Offset:0} 
+	var variants = getVariants(o)[0]
+	c.JSON(http.StatusOK, variants)
+}
+
 func getVariants(options queryOptions) []VariantResponse{
 	d := db.GetDB()
 
@@ -97,7 +103,7 @@ func getVariants(options queryOptions) []VariantResponse{
 			ID:            v.ID,
 			GameID:		v.Game.ID,
 			GameTitle:	v.Game.Title,
-			VariantDesc:	v.Description,
+			VariantDesc:	fmt.Sprintf("%s %s", v.Description, v.BoxType.Name),
 			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
 			Year:		v.Game.Year,
 			Platform:	v.Game.Platform.Name,

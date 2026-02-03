@@ -71,10 +71,12 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		qualitySuffix = "-low"
 	}
 
-	fmt.Printf("\n%s\n", strings.Repeat("=", 60))
-	fmt.Printf("Generating %s quality GLB\n", map[bool]string{true: "LOW", false: "HIGH"}[lowQuality])
-	fmt.Printf("Upsize ratio: %d, KTX2 quality: %d\n", upsizeRatio, ktx2Quality)
-	fmt.Printf("%s\n\n", strings.Repeat("=", 60))
+	if os.Getenv("APP_ENV") != "production" {
+		fmt.Printf("\n%s\n", strings.Repeat("=", 60))
+		fmt.Printf("Generating %s quality GLB\n", map[bool]string{true: "LOW", false: "HIGH"}[lowQuality])
+		fmt.Printf("Upsize ratio: %d, KTX2 quality: %d\n", upsizeRatio, ktx2Quality)
+		fmt.Printf("%s\n\n", strings.Repeat("=", 60))
+	}
 
 	// Determine box properties
 	boxType := gameInfo.BoxType
@@ -169,11 +171,13 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	// Save GLB
 	saveGLB(gltfData, gltfFilename, atlasFilename, atlasFile)
 
-	fileInfo, _ := os.Stat(gltfFilename)
-	fmt.Printf("%s quality GLB saved: %s (%.1f KB)\n",
-		map[bool]string{true: "LOW", false: "HIGH"}[lowQuality],
-		gltfFilename,
-		float32(fileInfo.Size())/1024)
+	if os.Getenv("APP_ENV") != "production" {
+		fileInfo, _ := os.Stat(gltfFilename)
+		fmt.Printf("%s quality GLB saved: %s (%.1f KB)\n",
+			map[bool]string{true: "LOW", false: "HIGH"}[lowQuality],
+			gltfFilename,
+			float32(fileInfo.Size())/1024)
+	}
 
 	return nil
 }
@@ -244,7 +248,9 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 	rowHeight := 0
 	maxWidth := entries[0].img.Bounds().Dx() * 2
 
-	fmt.Printf("Packing %d textures into atlas...\n", len(entries))
+	if os.Getenv("APP_ENV") != "production" {
+		fmt.Printf("Packing %d textures into atlas...\n", len(entries))
+	}
 
 	for _, entry := range entries {
 		bounds := entry.img.Bounds()
@@ -260,7 +266,9 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 		positions[entry.name] = image.Pt(currentX, currentY)
 		sizes[entry.name] = image.Pt(imgWidth, imgHeight)  // ADDED: Store texture size
 		
-		fmt.Printf("  '%s': pos=(%d,%d) size=(%d,%d)\n", entry.name, currentX, currentY, imgWidth, imgHeight)
+		if os.Getenv("APP_ENV") != "production" {
+			fmt.Printf("  '%s': pos=(%d,%d) size=(%d,%d)\n", entry.name, currentX, currentY, imgWidth, imgHeight)
+		}
 		
 		currentX += imgWidth
 		rowHeight = max(rowHeight, imgHeight)
@@ -275,7 +283,9 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 	atlasWidth = ((atlasWidth + 3) / 4) * 4
 	atlasHeight = ((atlasHeight + 3) / 4) * 4
 	
-	fmt.Printf("Atlas dimensions: %dx%d (original: %dx%d)\n", atlasWidth, atlasHeight, originalWidth, originalHeight)
+	if os.Getenv("APP_ENV") != "production" {
+		fmt.Printf("Atlas dimensions: %dx%d (original: %dx%d)\n", atlasWidth, atlasHeight, originalWidth, originalHeight)
+	}
 
 	atlas := imaging.New(atlasWidth, atlasHeight, image.Transparent)
 
@@ -326,8 +336,10 @@ func saveAsKTX2(img image.Image, outputPath, compression string, quality int) bo
 		return false
 	}
 
-	fileInfo, _ := os.Stat(outputPath)
-	fmt.Printf("KTX2 texture saved: %s (%.1f KB)\n", outputPath, float32(fileInfo.Size())/1024)
+	if os.Getenv("APP_ENV") != "production" {
+		fileInfo, _ := os.Stat(outputPath)
+		fmt.Printf("KTX2 texture saved: %s (%.1f KB)\n", outputPath, float32(fileInfo.Size())/1024)
+	}
 
 	return true
 }
