@@ -1,0 +1,47 @@
+@keyframes bgmove {
+    0% {
+      background-position-x: 0px;
+    }
+    100% {
+        background-position-x: -1920px;
+    }
+  }
+
+body{
+    background-color: #38549a;
+}
+#bg{
+    .bg-gradient{
+        background: linear-gradient(323deg, rgba(2,0,36,0) 32%, rgba(81,81,154,0.499019676229867) 73%, rgba(9,9,66,0.9079832616640406) 100%);
+    }
+    .bg-3d{
+        transform-style: preserve-3d;
+        perspective: 1000px;
+    
+        .bg-tiles{
+            background-image: url(/img/bg.jpg);
+            animation: bgmove 90s linear infinite;
+            will-change: transform;
+            transform-style: preserve-3d;
+            backface-visibility:  hidden;
+            /* transform: rotateY(-20deg) rotateX(20deg) translateZ(6900px) translateX(-3770px) translateY(-100px); */
+            transform: translateZ(0px) translateX(-3770px) translateY(-100px);
+        }
+    }
+}
+
+#main-header{
+    h1,h2{
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.77);
+    }
+    .searchBox{
+        border:1px solid black;
+        background-color:#ffffff;
+    }
+}
+
+#game{
+    h1{
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.77);
+    }
+}
