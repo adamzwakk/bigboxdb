@@ -34,32 +34,8 @@ func RunAllSeeds(db *gorm.DB) error {
 	return nil
 }
 
-func f32(v float32) *float32 { return &v }
-
 func seedInitialBoxTypes(db *gorm.DB) error {
-    boxtypes := []models.BoxType{
-        {ID:1, Name: "Big Box"},
-		{ID:2, Name: "Small Box"},
-		{ID: 3, Name: "Eidos Trapezoid", Width: f32(10), Height: f32(10), Depth: f32(2)},
-		{ID:4, Name: "DVD Case Slipcover"},
-		{ID:5, Name: "Old Small Box"},
-		{ID:6, Name: "Box in Box"},
-		{ID:7, Name: "Big Box With Gatefold"},
-		{ID:8, Name: "Small Box With Gatefold"},
-		{ID:9, Name: "Small Box With Vertical Gatefold"},
-		{ID:10, Name: "Small Box With Back Gatefold"},
-		{ID:11, Name: "New Small Box"},
-		{ID:12, Name: "New Big Box"},
-		{ID:13, Name: "Small Box For DVD"},
-		{ID:14, Name: "Big Long Box"},
-		{ID:15, Name: "Big Box With Vertical Gatefold But Horizontal"},
-		{ID:16, Name: "Small Box With Gatefold Right Flap"},
-		{ID:17, Name: "DVD Case Slipcover with Gatefold"},
-		{ID:18, Name: "New Box in Box"},
-		{ID:19, Name: "Vinyl Like With Gatefold"},
-    }
-
-    for _, bt := range boxtypes {
+    for _, bt := range models.BoxtypesEnum {
         if err := db.
             Where("id = ?", bt.ID).
             FirstOrCreate(&bt).Error; err != nil {

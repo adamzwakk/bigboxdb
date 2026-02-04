@@ -7,7 +7,7 @@ import (
 	"strings"
 	"path/filepath"
 	"os/exec"
-	_ "errors"
+	"errors"
 
 	"github.com/disintegration/imaging"
 	"github.com/sunshineplan/imgconv"
@@ -23,9 +23,9 @@ func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHei
 		fmt.Printf("Processing: %s\n", filename)
 	}
 
-	// if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
-    //     return nil // Already exists
-    // }
+	if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
+        return nil // Already exists
+    }
 
 	// Determine thumbnail size
 	var width, height int
@@ -47,14 +47,12 @@ func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHei
 }
 
 func saveAsWebP(img image.Image, path string) error {
-	// Use imgconv to save directly as WebP
 	outFile, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer outFile.Close()
 
-	// Use imgconv to save as WebP with quality setting
 	return imgconv.Write(outFile, img, &imgconv.FormatOption{Format: imgconv.WEBP})
 }
 
@@ -62,7 +60,6 @@ func processImageWithVips(srcPath, dstPath string, width, height int) error {
     ext := strings.ToLower(filepath.Ext(srcPath))
     
     if ext == ".tif" || ext == ".tiff" {
-        // vips can output WebP directly and handles the resize
         cmd := exec.Command("vipsthumbnail", srcPath,
             "-o", dstPath+"[Q=80]",
             "-s", fmt.Sprintf("%dx%d", width, height),

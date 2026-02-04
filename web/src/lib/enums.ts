@@ -1,4 +1,5 @@
 export enum BigBoxTypes{
+    _,
     Big_Box,
     Small_Box,
     Eidos_Trapezoid,

@@ -15,6 +15,8 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/sunshineplan/imgconv"
 	"github.com/gosimple/slug"
+
+	"github.com/adamzwakk/bigboxdb-server/models"
 )
 
 const (
@@ -81,11 +83,11 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	// Determine box properties
 	boxType := gameInfo.BoxType
 	var topWidth *float32
-	if boxType == 2 {
+	if boxType == models.FindBoxTypeIDByName("Eidos Trapezoid") {
 		var tw float32 = 5.75 
 		topWidth = &tw
 	}
-	gatefoldOnBack := boxType == 9
+	gatefoldOnBack := boxType == models.FindBoxTypeIDByName("Big Box With Back Gatefold")
 
 	// Sort texture paths
 	boxSortedPaths := make([]string, 6)
@@ -532,7 +534,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 	
 	// Front face
 	uvF := addUVSet("front", trapRatio, false, false, nil, 0)
-	if gameInfo.BoxType == 14 {
+	if gameInfo.BoxType == models.FindBoxTypeIDByName("Big Box With Vertical Gatefold But Horizontal") {
 		uvF = addUVSet("front", trapRatio, false, false, nil, 90)
 	}
 	if isTrapezoid {
@@ -641,11 +643,11 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 		flipGatefoldBack := false
 		var flipVert *bool
 		
-		if !gatefoldOnBack && (gameInfo.BoxType == 2 || gameInfo.BoxType == 8) {
+		if !gatefoldOnBack && (gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold")) {
 			flipGatefoldBack = true
 			f := false
 			flipVert = &f
-		} else if gameInfo.BoxType == 14 {
+		} else if gameInfo.BoxType == models.FindBoxTypeIDByName("Big Box With Vertical Gatefold But Horizontal") {
 			rotationAngle = -90
 		} else {
 			flipGatefoldBack = isTrapezoid && !gatefoldOnBack

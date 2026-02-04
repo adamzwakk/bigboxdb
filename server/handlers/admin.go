@@ -71,7 +71,27 @@ func (f *FirstString) UnmarshalJSON(data []byte) error {
 
 var destDir = "./uploads/scans/"
 // var allowedFiles = []string{"back.webp", "bottom.webp", "box.glb", "box-low.glb", "front.webp", "info.json", "left.webp", "right.webp", "top.webp"}
-var allowedFiles = []string{"back.tif", "bottom.tif", "box.glb", "box-low.glb", "front.tif", "info.json", "left.tif", "right.tif", "top.tif", "gatefold_left.tif", "gatefold_right.tif"}
+var allowedFiles = []string{
+	"back.tif", 
+	"bottom.tif", 
+	"box.glb",
+	"box-low.glb", 
+	"front.tif", 
+	"info.json", 
+	"left.tif", 
+	"right.tif", 
+	"top.tif", 
+	"gatefold_left.tif", 
+	"gatefold_right.tif",
+	"back.webp", 
+	"bottom.webp", 
+	"front.webp", 
+	"left.webp", 
+	"right.webp", 
+	"top.webp", 
+	"gatefold_left.webp", 
+	"gatefold_right.webp",
+}
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
