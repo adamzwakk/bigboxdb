@@ -1,10 +1,10 @@
 set dotenv-load := true
 
 up-services:
-    podman compose up -d mariadb redis
+    podman compose up -d mariadb redis meilisearch
 
 down-services:
-    podman compose down mariadb redis
+    podman compose down mariadb redis meilisearch
 
 lsql:
     lazysql "mariadb://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}"

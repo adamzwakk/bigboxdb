@@ -17,7 +17,7 @@ services:
     container_name: bigboxdb-api
     volumes:
       - ./dist/web:/app/web:ro
-      - scan_uploads:/app/uploads/scans ## Maybe fix local mount for paranoia reasons
+      - ./data-uploads:/app/uploads/scans ## Maybe fix local mount for paranoia reasons
     ports:
       - 8080:8080
     networks:
@@ -32,35 +32,32 @@ services:
     ports:
       - 6379:6379
     volumes:
-      - redis_data:/data
+      - ./data-redis:/data
   
   mariadb:
     image: mariadb:lts
     restart: no
     env_file: ".env"
     volumes:
-      - db-data:/var/lib/mysql
+      - ./data-sql:/var/lib/mysql
     ports:
       - 3306:3306
     networks:
       - bbdb_network
 
-  # redis:
-  #   image: redis:8.4-alpine
-  #   restart: no
-  #   command: redis-server --save 20 1 --loglevel warning
-  #   networks:
-  #     - bbdb_network
-      
-  # blog:
-  #   image: jakejarvis/hugo-extended:latest
-  #   expose:
-  #     - 1313
-  #   volumes:
-  #     - ./blog:/src
-  #   command: server --buildDrafts --buildFuture --bind 0.0.0.0
-  #   networks:
-  #     - bbdb_network
+  meilisearch:
+    image: getmeili/meilisearch:v1.35
+    volumes:
+      - ./data-ms://meili_data
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-ms}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   nginx:
     image: nginx:latest
@@ -68,7 +65,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./dist/web:/usr/share/nginx/html
-      - scan_uploads:/usr/share/nginx/html/scans
+      - ./data-uploads:/usr/share/nginx/html/scans:ro
     ports:
       - 8081:80
     depends_on:
@@ -80,8 +77,3 @@ services:
 
 networks:
   bbdb_network:
-
-volumes:
-  db-data:
-  redis_data:
-  scan_uploads:

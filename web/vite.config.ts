@@ -32,5 +32,6 @@ export default defineConfig({
          '/api': 'http://localhost:8080',
          '/scans': 'http://localhost:8080',
     }
-  }
+  },
+  envDir: '../.'
 })

@@ -17,10 +17,11 @@ import (
 func main() {
 	godotenv.Load("./../.env")
 	args := os.Args[1:]
-
 	db.InitRedis()
 
-	if slices.Contains(args, "migrate") {
+	if slices.Contains(args, "init-meilisearch") {
+		db.InitMeilisearchPublic()
+	} else if slices.Contains(args, "migrate") {
 		// SEED/MIGRATE DB
 		database := db.GetDB()
 		if err := database.AutoMigrate(

@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm/clause"
+	"github.com/meilisearch/meilisearch-go"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -232,6 +233,7 @@ func ImportFromSource(source FileSource) error {
 	}
 
 	database := db.GetDB()
+	meili := db.InitMeiliSearch()
 	slugTitle := slug.Make(data.Title)
 	variantDesc := data.Variant
 
@@ -328,6 +330,21 @@ func ImportFromSource(source FileSource) error {
 		variantID = variant.ID
 	}
 
+	docs := []map[string]interface{}{
+		{
+			"id":   game.ID,
+			"slug": game.Slug,
+			"variant_id": variantID,
+			"title": game.Title,
+			"year": variant.Year,
+			"region":region.Name,
+		},
+	}
+	pk := "variant_id"
+	meili.Index("items").AddDocuments(docs, &meilisearch.DocumentOptions{
+		PrimaryKey: &pk,
+	})
+
 	// Process images
 	var texPaths []string
 	wd, err := os.Getwd()
@@ -339,6 +356,7 @@ func ImportFromSource(source FileSource) error {
 		return fmt.Errorf("failed to list files: %w", err)
 	}
 
+	foundBox := false
 	for _, filename := range files {
 		if filename == "info.json" {
 			continue
@@ -364,30 +382,39 @@ func ImportFromSource(source FileSource) error {
 		}
 
 		texPaths = append(texPaths, dstPath)
+
+		// If we already have glb files, use em!
+		if filename == "box.glb" || filename == "box-low.glb" {
+			foundBox = true
+			tools.Copy(srcPath,gameDir + "/" + filename)
+		}
 	}
 
-	gameInfo := &tools.GameInfo{
-		Title:   data.Title,
-		Width:   data.Width,
-		Height:  data.Height,
-		Depth:   data.Depth,
-		BoxType: data.BoxType,
-	}
+	if !foundBox {
 
-	if os.Getenv("APP_ENV") != "production" {
-		log.Println("Making glb file")
-	}
-	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, false); err != nil {
-		return fmt.Errorf("failed to process glb file: " + err.Error())
-	}
-	if os.Getenv("APP_ENV") != "production" {
-		log.Println("Making low glb file")
-	}
-	if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, true); err != nil {
-		return fmt.Errorf("failed to process glb file: " + err.Error())
-	}
+		gameInfo := &tools.GameInfo{
+			Title:   data.Title,
+			Width:   data.Width,
+			Height:  data.Height,
+			Depth:   data.Depth,
+			BoxType: data.BoxType,
+		}
+	
+		if os.Getenv("APP_ENV") != "production" {
+			log.Println("Making glb file")
+		}
+		if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, false); err != nil {
+			return fmt.Errorf("failed to process glb file: " + err.Error())
+		}
+		if os.Getenv("APP_ENV") != "production" {
+			log.Println("Making low glb file")
+		}
+		if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, true); err != nil {
+			return fmt.Errorf("failed to process glb file: " + err.Error())
+		}
 
-	tools.CleanupKTX2Files(gameDir)
+		tools.CleanupKTX2Files(gameDir)
+	}
 
 	return nil
 }
