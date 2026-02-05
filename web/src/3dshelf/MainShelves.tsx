@@ -112,7 +112,7 @@ export default function MainShelves() {
         {
             const gameSeed = g.slug;            
             let chance:boolean = lastBox && lastBox.dir !== BoxShelfDirection.front && Math.random() < 0.10;
-            if(chance && g.worth_front_view === true && (activeWidth+g.w) < shelfLength-2)
+            if(chance && (activeWidth+g.w) < shelfLength-2)
             {
                 g.dir = BoxShelfDirection.front
             }

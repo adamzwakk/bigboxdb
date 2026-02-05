@@ -26,6 +26,7 @@ import (
 type ImportData struct{
 	Title			string	`json:"title"`
 	Description		*string	`json:"description,omitempty"`
+	Region			*string `json:"region,omitempty"`
 	SeriesSort		string	`json:"series"`
 	BoxType			uint	`json:"box_type"`
 	Width			float32	`json:"width"`
@@ -41,7 +42,7 @@ type ImportData struct{
 	MobygamesId		int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
-	WorthFrontView	*bool	`json:"worth_front_view,omitempty"`
+	Links			map[string]string `json:"links"`
 }
 
 type FirstString string
@@ -243,11 +244,6 @@ func ImportFromSource(source FileSource) error {
 		userName = *data.ContributedBy
 	}
 
-	worthFront := true
-	if data.WorthFrontView != nil {
-		worthFront = *data.WorthFrontView
-	}
-
 	var user models.User
 	if err := database.FirstOrCreate(&user, models.User{Name: userName}).Error; err != nil {
 		return fmt.Errorf("could not find/create User")
@@ -258,32 +254,39 @@ func ImportFromSource(source FileSource) error {
 		return fmt.Errorf("could not find/create Platform")
 	}
 
+	regString := "US"
+	if data.Region != nil {
+		regString = *data.Region
+	}
+
+	var region models.Region
+	if err := database.FirstOrCreate(&region, models.Region{Name: regString}).Error; err != nil {
+		return fmt.Errorf("could not find/create Region")
+	}
+
 	var dev models.Developer
 	database.Where(models.Developer{Name: string(data.Developer)}).Assign(models.Developer{Slug: slug.Make(string(data.Developer))}).FirstOrCreate(&dev)
 
 	var pub models.Publisher
 	database.Where(models.Publisher{Name: string(data.Publisher)}).Assign(models.Publisher{Slug: slug.Make(string(data.Publisher))}).FirstOrCreate(&pub)
 
+	var links []models.Link
+	for lt, url := range data.Links {
+		var ltype models.LinkType
+		database.Where(models.LinkType{SmallName: lt}).Assign(models.LinkType{Name: lt}).FirstOrCreate(&ltype)
+
+		links = append(links, models.Link{
+			TypeID: ltype.ID,
+			Link:  url,
+		})
+	}
+
 	game := models.Game{
 		Title:       data.Title,
 		Slug:        slugTitle,
 		Description: data.Description,
-		Year:        data.Year,
 		PlatformID:  platform.ID,
-		Variants: []models.Variant{
-			{
-				BoxTypeID:      data.BoxType,
-				Description:    variantDesc,
-				Slug:           slug.Make(fmt.Sprintf("%s-%d", variantDesc, data.BoxType)),
-				DeveloperID:    dev.ID,
-				PublisherID:    pub.ID,
-				Width:          data.Width,
-				Height:         data.Height,
-				Depth:          data.Depth,
-				WorthFrontView: worthFront,
-				UserID:         user.ID,
-			},
-		},
+		Links: links,
 	}
 
 	database.Clauses(clause.OnConflict{
@@ -294,10 +297,34 @@ func ImportFromSource(source FileSource) error {
 		}),
 	}).Create(&game)
 
-	variantID := game.Variants[0].ID
+	if game.ID == 0 {
+		database.Where("slug = ?", slugTitle).First(&game)
+	}
+
+	variant := models.Variant{
+		GameID:      game.ID,
+		Year:        data.Year,
+		BoxTypeID:   data.BoxType,
+		Description: variantDesc,
+		Slug:        slug.Make(fmt.Sprintf("%s-%s-%d", slugTitle, variantDesc, data.BoxType)), // do I need this?
+		DeveloperID: dev.ID,
+		PublisherID: pub.ID,
+		RegionID:    region.ID,
+		Width:       data.Width,
+		Height:      data.Height,
+		Depth:       data.Depth,
+		UserID:      user.ID,
+	}
+
+	database.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "slug"}},
+		DoUpdates: clause.AssignmentColumns([]string{"year", "description","width","height","depth"}),
+	}).Create(&variant)
+
+	variantID := variant.ID
 	if variantID == 0 {
 		var variant models.Variant
-		database.Where("slug = ?", game.Variants[0].Slug).First(&variant)
+		database.Where("slug = ?", variant.Slug).First(&variant)
 		variantID = variant.ID
 	}
 

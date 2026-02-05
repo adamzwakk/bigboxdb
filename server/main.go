@@ -26,6 +26,8 @@ func main() {
 		if err := database.AutoMigrate(
 			&models.Game{},
 			&models.Variant{},
+			&models.LinkType{},
+			&models.Link{},
 			&db.SeedMeta{},
 		); err != nil {
 			log.Fatal(err)

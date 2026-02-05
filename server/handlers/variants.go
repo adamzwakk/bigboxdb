@@ -18,13 +18,13 @@ type VariantResponse struct {
 	GameTitle	string	`json:"title"`
 	VariantDesc	string	`json:"variant"`
 	Slug		string	`json:"slug"`
+	Region		string	`json:"region"`
 	Year		int		`json:"year"`
 	Platform	string	`json:"platform"`
 	W			float32	`json:"w"`
 	H			float32	`json:"h"`	
 	D			float32	`json:"d"`
 	Direction	int		`json:"dir"`
-	WorthFrontView	bool	`json:"worth_front_view"`
 	GatefoldTransparent	bool	`json:"gatefold_transparent"`
 	BoxType		uint	`json:"box_type"`
 	Developer	string	`json:"developer,omitempty"`
@@ -67,6 +67,8 @@ func getVariants(options queryOptions) []VariantResponse{
 	q := d.Joins("Game", d.Select("id", "Title", "Slug", "Year", "PlatformID")).
 	Preload("BoxType", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
+	}).Preload("Region", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "Name")
 	}).Preload("Game.Platform", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	})
@@ -96,7 +98,7 @@ func getVariants(options queryOptions) []VariantResponse{
 	var resp []VariantResponse
 	for _, v := range variants {
 		dir := 0
-		if v.BoxType.ID == 3 {
+		if v.BoxType.ID == models.FindBoxTypeIDByName("Eidos Trapezoid") {
 			dir = 1
 		}
 		resp = append(resp, VariantResponse{
@@ -105,12 +107,12 @@ func getVariants(options queryOptions) []VariantResponse{
 			GameTitle:	v.Game.Title,
 			VariantDesc:	fmt.Sprintf("%s %s", v.Description, v.BoxType.Name),
 			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
-			Year:		v.Game.Year,
+			Region:		v.Region.Name,
+			Year:		v.Year,
 			Platform:	v.Game.Platform.Name,
 			Developer: v.Developer.Name,
 			Publisher: v.Publisher.Name,
 			GatefoldTransparent:	v.GatefoldTransparent,
-			WorthFrontView:	v.WorthFrontView,
 			W:		v.Width,
 			H:		v.Height,
 			D:		v.Depth,

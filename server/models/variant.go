@@ -18,17 +18,20 @@ type Variant struct{
 
 	Description				string	`gorm:"type:varchar(255);"`
 	Slug					string	`gorm:"type:varchar(255);not null;unique;"`
-	Region					int
+	
+	RegionID				uint
+	Region					Region
 
 	BoxTypeID				uint
 	BoxType					BoxType
+
+	Year					int
 	
 	GatefoldTransparent		bool
 	Width					float32 `gorm:"type:float"`
 	Height					float32 `gorm:"type:float"`
 	Depth					float32 `gorm:"type:float"`
 	ScanNotes				*string	`gorm:"type:text;"`
-	WorthFrontView			bool
 
 	UserID					uint
 	User					User	`gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

@@ -10,9 +10,9 @@ type Game struct{
 	Description				*string	`gorm:"type:text;"`
 	SeriesSort				*string `gorm:"type:varchar(255);"`
 	Slug					string	`gorm:"type:varchar(255);not null;unique;"`
-	Year					int
 
 	Variants				[]Variant
+	Links					[]Link
 
 	PlatformID				uint
 	Platform				Platform
