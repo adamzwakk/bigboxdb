@@ -1,0 +1,71 @@
+name: bigboxdb-server-prod
+
+services:
+
+  server:
+    env_file:
+    - .env
+    environment:
+      - APP_ENV=production
+      - GIN_MODE=release
+      - MYSQL_HOST=mariadb
+      - REDIS_ADDR=redis:6379
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: bigboxdb-api:latest
+    container_name: bigboxdb-api
+    volumes:
+      - ./dist/web:/app/web:ro
+      - ./data-uploads-prod:/app/uploads/scans ## Maybe fix local mount for paranoia reasons
+    networks:
+      - bbdb_network
+    depends_on:
+      - mariadb
+      - redis
+
+  redis:
+    image: redis:alpine
+    restart: no
+    volumes:
+      - ./data-redis-prod:/data
+  
+  mariadb:
+    image: mariadb:lts
+    restart: no
+    env_file: ".env"
+    volumes:
+      - ./data-sql-prod:/var/lib/mysql
+    networks:
+      - bbdb_network
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.35
+    volumes:
+      - ./data-ms-prod:/meili_data
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-ms}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:latest
+    restart: no
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./dist/web:/usr/share/nginx/html
+      - ./data-uploads-prod:/usr/share/nginx/html/scans:ro
+    ports:
+      - 8081:80
+    depends_on:
+      - mariadb
+      - redis
+      - server
+    networks:
+      - bbdb_network
+
+networks:
+  bbdb_network:

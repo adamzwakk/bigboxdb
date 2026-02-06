@@ -2,30 +2,6 @@ name: bigboxdb-server
 
 services:
 
-  server:
-    env_file:
-    - .env
-    environment:
-      - APP_ENV=production
-      - GIN_MODE=release
-      - MYSQL_HOST=mariadb
-      - REDIS_ADDR=redis:6379
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    image: bigboxdb-api:latest
-    container_name: bigboxdb-api
-    volumes:
-      - ./dist/web:/app/web:ro
-      - ./data-uploads:/app/uploads/scans ## Maybe fix local mount for paranoia reasons
-    ports:
-      - 8080:8080
-    networks:
-      - bbdb_network
-    depends_on:
-      - mariadb
-      - redis
-
   redis:
     image: redis:alpine
     restart: no
@@ -58,22 +34,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  nginx:
-    image: nginx:latest
-    restart: no
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./dist/web:/usr/share/nginx/html
-      - ./data-uploads:/usr/share/nginx/html/scans:ro
-    ports:
-      - 8081:80
-    depends_on:
-      - mariadb
-      - redis
-      - server
-    networks:
-      - bbdb_network
 
 networks:
   bbdb_network:

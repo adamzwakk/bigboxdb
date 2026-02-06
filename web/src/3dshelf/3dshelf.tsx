@@ -7,7 +7,7 @@ export default function ThreeDeeShelf(){
     return (
         <ShelvesProvider>
             <title>BigBoxDB | 3D Shelves</title>
-            <div id="topLogo">
+            <div id="topLogo" className="threedee">
               <a href="/" className="logoContain mb-2 block">
                   <div className="mainLogo">
                       <img src="/img/logo_filled.png" alt="Logo"/>

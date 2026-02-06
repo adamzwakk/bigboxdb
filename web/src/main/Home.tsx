@@ -19,7 +19,7 @@ export default function Home() {
     },[])
 
     return(
-        <div id="home" className='relative'>
+      <div id="home" className='relative'>
         <div id="main-header" className="ml-auto mr-auto w-full sm:w-xl p-5 z-4 text-white pt-[3vh]">
             <a href="/" className='mb-5 block'>
                 <div className='flex mr-auto ml-auto text-center content-center justify-center'>
@@ -29,7 +29,7 @@ export default function Home() {
                 <h2 className='text-[18px] -mt-2 text-center block font-bold'>an elegant wrapping from a more civilized age</h2>
             </a>
             <Search onShelf={false} />
-            <ul className='text-right belowSearch -mt-3'>
+            <ul className='text-right belowSearch'>
                 <li className='inline-block bg-black/50 p-2'>
                     <a href="/shelves"><img src="/img/icons/shelves.png" className="inline w-6" alt="" />Or see the <span className='font-bold underline'>3D shelves!</span></a>
                 </li>
@@ -74,9 +74,7 @@ export default function Home() {
                 <SingleGame slug={false} zd={-6} showFooter={true} />
               </div>
             </div>
-
-
         </div>
-    </div>
+      </div>
     )
 }

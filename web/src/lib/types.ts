@@ -95,34 +95,6 @@ export type Game3D = Game &
     boxGeo?: BufferGeometry|BoxGeometry,
 }
 
-export interface MariaGame {
-	id?: number,
-	title: string,
-	slug: string,
-	box_type_id:number,
-	gatefold_transparent?:boolean,
-	variant:string,
-	platform_id?: number,
-	platform?:{name:string},
-	description:string,
-	series?:string,
-	year:number,
-	width:number,
-	height:number,
-	depth:number,
-	mobygames_id?:number,
-	scan_notes?:string,
-	steam_link?:string,
-	gog_link?:string,
-	other_link?:string,
-	worth_front_view?:boolean
-	contributed_by?:number
-	contributor?:{name:string}
-	igdb_id?:number,
-	publishers?:Array<any>
-	developers?:Array<any>
-}
-
 export type StatsProps = {
     name:string,
     count:number

@@ -110,35 +110,37 @@ body{
     }
 }
 
-.searchBox{
-    margin: 0 auto;
-    width: 90%;
-    position: relative;
-    font-size: 14px;
-    .searchInput{
-        width:100%;
-        font-size: 15px;
-        padding: 4px 0 4px 4px;
-        background-color: #fff;
-    }
-    ul.searchResults{
-        width:100%;
-        // font-size: 14px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        background-color: rgba(0,0,0,1);
-        color:#ffffff;
-        position: absolute;
-        li{
-            cursor: pointer;
-            padding:4px;
-
-            &:hover{
-                background: rgba(255,255,255,0.2);
-            }
+.threedee{
+    .searchBox{
+        margin: 0 auto;
+        width: 90%;
+        position: relative;
+        font-size: 14px;
+        .searchInput{
+            width:100%;
+            font-size: 15px;
+            padding: 4px 0 4px 4px;
+            background-color: #fff;
         }
-    }   
+        ul.searchResults{
+            width:100%;
+            // font-size: 14px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            background-color: rgba(0,0,0,1);
+            color:#ffffff;
+            position: absolute;
+            li{
+                cursor: pointer;
+                padding:4px;
+
+                &:hover{
+                    background: rgba(255,255,255,0.2);
+                }
+            }
+        }   
+    }
 }
 
 #topHud{

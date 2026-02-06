@@ -1,9 +1,9 @@
 import {create} from "zustand";
-import type { Game, Game3D, SearchIndex, ShelfProps } from "@/lib/types";
+import type { Game3D, SearchIndex, ShelfProps } from "@/lib/types";
 
 interface BigBoxDBState {
     activeGame:Game3D|null
-    goToSearchedGame:Game|SearchIndex|null
+    goToSearchedGame:{variant_id:number,slug:string}|null
     shouldHover:Array<SearchIndex>|null
     controlsEnable:boolean
     toggleGatefold:boolean
@@ -11,7 +11,7 @@ interface BigBoxDBState {
     isDragging: boolean,
     activeShelves:Array<ShelfProps>,
     stagedOptions:{shelfLength:number,boxTypes:Array<number>}
-    setGoToSearchedGame:(g:Game|SearchIndex|null) => void
+    setGoToSearchedGame:(g:{variant_id:number,slug:string}|null) => void
     setControlsEnable:(e:boolean) => void
     setActiveGame: (g:Game3D|null) => void
     setShouldHover: (g:Array<SearchIndex>) => void
@@ -38,7 +38,7 @@ export const useStore = create<BigBoxDBState>((set) => ({
         }));
     },
 
-    setGoToSearchedGame: (e: Game|SearchIndex|null) => {
+    setGoToSearchedGame: (e: {variant_id:number,slug:string}|null) => {
         set(() => ({
             goToSearchedGame: e
         }));

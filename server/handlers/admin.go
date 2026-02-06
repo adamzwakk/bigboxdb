@@ -32,6 +32,7 @@ type ImportData struct{
 	BoxType			uint	`json:"box_type"`
 	Width			float32	`json:"width"`
 	Height			float32	`json:"height"`
+	GatefoldTransparent		*bool `json:"gatefold_transparent"`
 	Depth			float32	`json:"depth"`
 	Year			int	`json:"year"`
 	Variant			string	`json:"variant"`
@@ -266,6 +267,11 @@ func ImportFromSource(source FileSource) error {
 		return fmt.Errorf("could not find/create Region")
 	}
 
+	gatefoldTransparent := false
+	if data.GatefoldTransparent != nil {
+		gatefoldTransparent = *data.GatefoldTransparent
+	}
+
 	var dev models.Developer
 	database.Where(models.Developer{Name: string(data.Developer)}).Assign(models.Developer{Slug: slug.Make(string(data.Developer))}).FirstOrCreate(&dev)
 
@@ -308,6 +314,7 @@ func ImportFromSource(source FileSource) error {
 		Year:        data.Year,
 		BoxTypeID:   data.BoxType,
 		Description: variantDesc,
+		GatefoldTransparent: gatefoldTransparent,
 		Slug:        slug.Make(fmt.Sprintf("%s-%s-%d", slugTitle, variantDesc, data.BoxType)), // do I need this?
 		DeveloperID: dev.ID,
 		PublisherID: pub.ID,
@@ -320,7 +327,7 @@ func ImportFromSource(source FileSource) error {
 
 	database.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "slug"}},
-		DoUpdates: clause.AssignmentColumns([]string{"year", "description","width","height","depth"}),
+		DoUpdates: clause.AssignmentColumns([]string{"year", "description","width","height","depth","gatefold_transparent"}),
 	}).Create(&variant)
 
 	variantID := variant.ID

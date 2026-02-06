@@ -1,5 +1,8 @@
 set dotenv-load := true
 
+## Fun Notes
+## for dir in /mnt/Projects/PcBoxes/games/*/webfiles-gltf/; do go run . import "$dir"; done
+
 up-services:
     podman compose up -d mariadb redis meilisearch
 
@@ -37,4 +40,4 @@ web-build:
     cd web && npm run build
 
 prod-build:
-    just web-build && podman compose build server && podman compose up -d
+    just web-build && podman compose -f compose.prod.yml build server && podman compose -f compose.prod.yml up -d

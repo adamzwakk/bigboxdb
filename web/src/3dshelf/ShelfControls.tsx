@@ -14,7 +14,7 @@ export default function ShelfControls()
 {
     // @ts-ignore
     const mainControls = useRef<MapControls>(null);
-    const {controlsEnable,goToSearchedGame,activeShelves} = useStore();
+    const {controlsEnable,goToSearchedGame,activeShelves,setGoToSearchedGame} = useStore();
     const params = useParams()
     const startingCameraZ = 30
     const context = useShelvesData()
@@ -25,7 +25,8 @@ export default function ShelfControls()
     useEffect(() => {
         if(!isEmpty(goToSearchedGame))
         {
-            gotoGame(searchShelves({id:goToSearchedGame.id}),false)
+            gotoGame(searchShelves({id:goToSearchedGame.variant_id}),false)
+            setGoToSearchedGame(null)
         }
     }, [goToSearchedGame]);
 
@@ -58,7 +59,7 @@ export default function ShelfControls()
                     id: g.id,
                     slug: g.slug,
                     shelfX: g.shelfX,
-                    shelfY: shelfY+(g.shelfY!)+(g.h/2),
+                    shelfY: shelfY+(g.h/2),
                     shelfNum: shelfCount
                 })
             })
