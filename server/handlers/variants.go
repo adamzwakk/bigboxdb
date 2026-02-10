@@ -30,7 +30,9 @@ type VariantResponse struct {
 	BoxType		uint	`json:"box_type"`
 	BoxTypeName		string	`json:"box_type_name"`
 	Developer	string	`json:"developer,omitempty"`
+	DeveloperID	uint	`json:"developer_id,omitempty"`
 	Publisher	string	`json:"publisher,omitempty"`
+	PublisherID	uint	`json:"publisher_id,omitempty"`
 	TexturePath	string	`json:"textureFileName"`
 	ContributedBy	string	`json:"contributed_by"`
 	AddedOn		time.Time	`json:"created_at"`
@@ -131,8 +133,10 @@ func getVariants(options queryOptions) []VariantResponse{
 			Region:		v.Region.Name,
 			Year:		v.Year,
 			Platform:	v.Game.Platform.Name,
+			DeveloperID: v.Developer.ID,
 			Developer: v.Developer.Name,
 			Publisher: v.Publisher.Name,
+			PublisherID: v.Publisher.ID,
 			GatefoldTransparent:	v.GatefoldTransparent,
 			W:		v.Width,
 			H:		v.Height,

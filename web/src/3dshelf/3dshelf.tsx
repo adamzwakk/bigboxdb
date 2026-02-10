@@ -4,6 +4,7 @@ import ShelvesProvider from "./ShelvesProvider";
 import Footer from "@/partials/Footer";
 import Music from "./Music";
 import GameInfo from "./GameInfo";
+import ShelfOptions from "./ShelfOptions";
 
 export default function ThreeDeeShelf(){
     return (
@@ -20,7 +21,7 @@ export default function ThreeDeeShelf(){
                   </div>
               </a>
               <Search onShelf={true} />
-              {/* <ShelfOptions /> */}
+              <ShelfOptions />
           </div>
           <GameInfo />
           <Music />

@@ -1,17 +1,19 @@
 import {useEffect, useRef, useState} from "react";
 import {useStore} from "@/lib/Store";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { InstantSearch, SearchBox, Hits, useInstantSearch, useSearchBox, Configure } from 'react-instantsearch';
 import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
 
 export default function Search({onShelf}:{onShelf:boolean})
 {
+    const navigate = useNavigate();
+
     const { searchClient } = instantMeiliSearch(
         import.meta.env.VITE_MEILI_URL, 
         import.meta.env.VITE_MEILI_KEY
     );
     
-    const { setShouldHover, setGoToSearchedGame, goToSearchedGame } = useStore();
+    const { setGoToSearchedGame, goToSearchedGame } = useStore();
     const [showSearch, setShowSearch] = useState(true)
     const searchRef = useRef<HTMLInputElement>(null)
     const params = useParams()
@@ -36,7 +38,7 @@ export default function Search({onShelf}:{onShelf:boolean})
                 searchRef.current.value = ''
             }
         } else if(!onShelf && goToSearchedGame) {
-            location.href = '/game/'+goToSearchedGame.slug
+            navigate('/game/'+goToSearchedGame.slug)
         }
     },[goToSearchedGame, onShelf])
     

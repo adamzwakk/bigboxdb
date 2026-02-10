@@ -2,7 +2,6 @@ import {create} from "zustand";
 import type { Game3D, SearchIndex, ShelfProps } from "@/lib/types";
 
 interface BigBoxDBState {
-    activeGame:Game3D|null
     goToSearchedGame:{variant_id:number,slug:string}|null
     shouldHover:Array<SearchIndex>|null
     controlsEnable:boolean
@@ -10,10 +9,9 @@ interface BigBoxDBState {
     shelfNum:number,
     isDragging: boolean,
     activeShelves:Array<ShelfProps>,
-    stagedOptions:{shelfLength:number,boxTypes:Array<number>}
+    stagedOptions:{shelfLength:number,boxTypes:Array<number>,dev:string|null,pub:string|null}
     setGoToSearchedGame:(g:{variant_id:number,slug:string}|null) => void
     setControlsEnable:(e:boolean) => void
-    setActiveGame: (g:Game3D|null) => void
     setShouldHover: (g:Array<SearchIndex>) => void
     setShelfNum:(n:number) => void
     setIsDragging:(e:boolean) => void
@@ -24,13 +22,12 @@ interface BigBoxDBState {
 export const useStore = create<BigBoxDBState>((set) => ({
     controlsEnable:true,
     shouldHover:null,
-    activeGame:null,
     goToSearchedGame:null,
     toggleGatefold:false,
     shelfNum:0,
     isDragging: false,
     activeShelves: [],
-    stagedOptions:{shelfLength:100, boxTypes:[0]},
+    stagedOptions:{shelfLength:100, boxTypes:[0],dev:null,pub:null},
 
     setShelfNum: (e) => {
         set(() => ({
@@ -53,12 +50,6 @@ export const useStore = create<BigBoxDBState>((set) => ({
     setShouldHover: (g: Array<SearchIndex>) => {
         set(() => ({
             shouldHover: g
-        }));
-    },
-
-    setActiveGame: (g: Game3D|null) => {
-        set(() => ({
-            activeGame: g
         }));
     },
 

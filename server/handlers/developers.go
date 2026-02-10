@@ -3,19 +3,36 @@ package handlers
 import (
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm/clause"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
 )
 
-func DevelopersAll(c *gin.Context){
-	database := db.GetDB()
+type DevResponse struct {
+	ID			uint	`json:"id"`
+	Name		string	`json:"name"`
+	Slug	string	`json:"slug"`
+	VariantCount	uint	`json:"variant_count"`
+}
 
-	var devs []models.Developer
+func DevelopersAll(c *gin.Context) {
+    d := db.GetDB()
+    var devs []models.Developer
 
-	// database.Select("title", "age").Find(&games)
-	database.Preload(clause.Associations).Find(&devs)
+    d.Debug().Select("developers.*, COUNT(variants.id) as variant_count").
+        Joins("LEFT JOIN variants ON developers.id = variants.developer_id").
+        Group("developers.id").
+        Find(&devs)
 
-	c.JSON(http.StatusOK, devs)
+	var resp []DevResponse
+	for _, dev := range devs {
+		resp = append(resp, DevResponse{
+			ID:            dev.ID,
+			Name:		dev.Name,
+			Slug:	dev.Slug,
+			VariantCount:	dev.VariantCount,
+		})
+	}
+
+    c.JSON(http.StatusOK, resp)
 }

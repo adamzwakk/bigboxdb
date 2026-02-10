@@ -39,31 +39,18 @@ export default function MainShelves() {
         if(allGames.length)
         {
             let games = structuredClone(allGames)
-
-            if(pathname.includes('/developer/') && params.devSlug)
+            if(stagedOptions.dev !== null)
             {
-                let dslug = params.devSlug
                 games = filter(games, (e) => {
-                    return e.developers?.some((d: {name: string, slug: string}) => {
-                        return d.slug == dslug;
-                    });
+                    return e.developer_id == stagedOptions.dev;
                 });
             }
-            else if(pathname.includes('/publisher/') && params.pubSlug)
+            if(stagedOptions.pub !== null)
             {
-                let pslug = params.pubSlug
                 games = filter(games, (e) => {
-                    return e.publishers?.some((d: {name: string, slug: string}) => {
-                        return d.slug == pslug;
-                    });
+                    return e.publisher_id == stagedOptions.pub;
                 });
             }
-
-            // if(stagedOptions.boxTypes.length)
-            // {
-            //     games = filter(games, function(o) {  return stagedOptions.boxTypes.includes(o.box_type); });
-            // }
-
 
             if(games)
             {

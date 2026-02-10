@@ -62,10 +62,10 @@ func main() {
 			g.GET("/all", handlers.GamesAll)
 
 			dev := a.Group("/developers")
-			dev.GET("/all", handlers.GamesAll)
+			dev.GET("/all", handlers.DevelopersAll)
 
 			pub := a.Group("/publishers")
-			pub.GET("/all", handlers.GamesAll)
+			pub.GET("/all", handlers.PublishersAll)
 
 			v := a.Group("/variants")
 			v.GET("/:id", handlers.VariantById)

@@ -30,8 +30,8 @@ export default function ShelvesProvider({
     fetch('/api/developers/all')
       .then((res) => res.json())
       .then((s:any) => {
-          s.forEach((d: { slug: any; name: any; softwareCount:number }) => {
-              devs.push({slug:d.slug,name:d.name,count:d.softwareCount})
+          s.forEach((d: { id:number, slug: string; name: string; variant_count:number }) => {
+              devs.push({id:d.id, slug:d.slug,name:d.name,count:d.variant_count})
           });
           setDevelopers(devs)
       })
@@ -40,8 +40,8 @@ export default function ShelvesProvider({
     fetch('/api/publishers/all')
       .then((res) => res.json())
       .then((s:any) => {
-          s.forEach((d: { slug: any; name: any; softwareCount:number }) => {
-              pubs.push({slug:d.slug,name:d.name,count:d.softwareCount})
+          s.forEach((d: { id:number, slug: string; name: string; variant_count:number }) => {
+              pubs.push({id:d.id, slug:d.slug,name:d.name,count:d.variant_count})
           });
           setPublishers(pubs)
       })
