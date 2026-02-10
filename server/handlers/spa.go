@@ -4,6 +4,8 @@ import (
     "fmt"
     "os"
     "strings"
+    "strconv"
+    "log"
 
     "github.com/gin-gonic/gin"
 )
@@ -12,8 +14,15 @@ func ServeIndex(c *gin.Context) {
     path := c.Request.URL.Path
 
     if strings.HasPrefix(path, "/game/") {
-        slug := strings.TrimPrefix(path, "/game/")
-        if m, ok := GetMeta(slug); ok {
+        remainder := strings.TrimPrefix(path, "/game/")
+        parts := strings.Split(remainder, "/")
+
+        slug := parts[0]
+        var variantID int = 0
+        if len(parts) > 1 {
+            variantID, _ = strconv.Atoi(parts[1])
+        }
+        if m, ok := GetMeta(slug, variantID); ok {
             serveWithMeta(c, m)
             return
         }

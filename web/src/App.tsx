@@ -8,17 +8,15 @@ import Variant from './main/Variant';
 function MainLayout() {
   return (
     <>
-        <div>
           <div id="bg" className="w-screen h-screen fixed z-0">
               <div className="bg-gradient w-screen h-screen absolute z-1"></div>
               <div className="bg-3d w-screen h-screen">
               <div className="bg-tiles w-6000 h-6000 bg-repeat absolute blur-xs opacity-80"></div>
               </div>
           </div>
-          <div id="main-content">
+          <div id="main-content" className="relative min-h-screen overflow-y-auto">
               <Outlet />
           </div>
-        </div>
         <div className="h-30">&nbsp;</div>
         <div id="footer" className='fixed w-[100%] flex text-xs font-bold bottom-0 text-white z-5 justify-center'>
             <Footer />

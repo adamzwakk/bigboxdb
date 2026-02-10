@@ -11,7 +11,7 @@ export default function Header()
             </a>
             <div className="flex-3">
                 <Search onShelf={false} />
-                <ul className='text-right belowSearch -mt-3'>
+                <ul className='text-right belowSearch'>
                     <li className='inline-block bg-black/50 p-2'>
                         <a href="/shelves"><img src="/img/icons/shelves.png" className="inline w-6" alt="" />Or see the <span className='font-bold underline'>3D shelves!</span></a>
                     </li>

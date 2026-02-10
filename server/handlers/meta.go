@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "time"
 	"fmt"
+    // "log"
 
 	"gorm.io/gorm"
 
@@ -17,7 +18,7 @@ type Meta struct {
     Image       string `json:"image"`
 }
 
-func GetMeta(slug string) (Meta, bool) {
+func GetMeta(slug string, variantID int) (Meta, bool) {
     // Check cache
     val, err := db.Rdb.Get(db.Ctx, "meta:"+slug).Result()
     if err == nil {
@@ -28,10 +29,18 @@ func GetMeta(slug string) (Meta, bool) {
     }
 
 	d := db.GetDB()
+
     var v models.Variant
-    if err := d.Where("slug = ?", slug).Preload("Game", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "Title", "Slug")
-	}).First(&v).Error; err != nil {
+    q := d.Preload("Game", func(db *gorm.DB) *gorm.DB {
+        return db.Select("id", "Title", "Slug")
+    })
+    if variantID > 0 {
+        q = q.Where("variants.id = ?", variantID)
+    } else {
+        q = q.Where("games.slug = ?", slug)
+    }
+
+    if err := q.First(&v).Error; err != nil {
         return Meta{}, false
     }
 
