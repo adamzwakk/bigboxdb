@@ -1,7 +1,7 @@
 'use client'
 
 import { MapControls } from "@react-three/drei";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/Store";
 import { MOUSE, TOUCH } from 'three';
 import { find, forEach, has, isEmpty, isEqual, sample } from "lodash";
@@ -14,13 +14,25 @@ export default function ShelfControls()
 {
     // @ts-ignore
     const mainControls = useRef<MapControls>(null);
-    const {controlsEnable,goToSearchedGame,activeShelves,setGoToSearchedGame} = useStore();
+    const {goToSearchedGame,activeShelves,setGoToSearchedGame} = useStore();
     const params = useParams()
+    const [controlsEnable, setControlsEnable] = useState(true)
     const startingCameraZ = 30
     const context = useShelvesData()
     const prevShelvesRef = useRef(activeShelves); // Track previous shelves
     
     const { shelfLength } = context;
+
+    useEffect(() => {
+        if(isEmpty(params))
+        {
+            setControlsEnable(true)
+        }
+        else
+        {
+            setControlsEnable(false)
+        }
+    },[params])
 
     useEffect(() => {
         if(!isEmpty(goToSearchedGame))

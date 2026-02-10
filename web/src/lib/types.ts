@@ -108,7 +108,7 @@ export type GameInfoProps = {
 	width: number,
 	height: number,
 	depth: number,
-	images: BoxSides,
+	box_type_name: string,
 	platform: string,
 	variant: string,
 	scan_notes: string,

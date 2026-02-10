@@ -12,7 +12,7 @@ import {useStore} from "@/lib/Store";
 import {IsTouchDevice} from "@/lib/Utils";
 import type { Game3D } from '@/lib/types';
 import { AllGatefoldTypes, BigBoxTypes, BoxShelfDirection, VerticalGatefoldTypes } from '@/lib/enums';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 type BigBoxProps = {
     position: {x:number, y:number, z:number},
@@ -204,6 +204,9 @@ function BoxPlaceholder({ g }: { g: Game3D }) {
 
 function BigBox({position, g, onShelf}:BigBoxProps)
 {
+    const navigate = useNavigate();
+    const params = useParams()
+
     const groupRef = useRef<THREE.Group>(null);
     const rotateXTo = useRef<gsap.QuickToFunc | null>(null);
     const rotateYTo = useRef<gsap.QuickToFunc | null>(null);
@@ -217,8 +220,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
     const [useHighQuality, setUseHighQuality] = useState(false);
     
     const [previousMouseDelta, setPreviousMouseDelta] = useState([0,0])
-    const { setActiveGame, activeGame, shouldHover,setControlsEnable, setIsDragging } = useStore();
-    const params = useParams()
+    const { shouldHover, setIsDragging } = useStore();
     const zDelta = IsTouchDevice() ? 12 : 10
 
     // Check if this box is in view
@@ -313,13 +315,26 @@ function BigBox({position, g, onShelf}:BigBoxProps)
                 ease: "power2.out"
             });
         }
-        if(!onShelf || (params && params.variantId && parseInt(params.variantId) == g.id && !active))
+        if(!onShelf)
         {
-            setTimeout(function(){
-                activateGame(null)
-            },200)
+            setActive(true)
+            setUseHighQuality(true)
         }
-    },[]);
+    },[]); 
+
+    useEffect(() => {
+        if(onShelf){
+            if(params.variantId && parseInt(params.variantId) == g.id && !active)
+            {
+                activateGame(null)
+                setActive(true)
+            }
+            else if(!params.variantId)
+            {
+                setActive(false)
+            }
+        }
+    },[params])
 
     useEffect(() => {
         if(find(shouldHover,{id:g.id}))
@@ -381,26 +396,6 @@ function BigBox({position, g, onShelf}:BigBoxProps)
             });
         }
     },[active])
-
-    useEffect(() => {
-        if(activeGame === null && active)
-        {
-            if(AllGatefoldTypes.has(g.box_type) && gatefoldOpen)
-            {
-                togGatefold();
-            }
-            setActive(false)
-            return
-        }
-        if(activeGame && g.id == activeGame.id)
-        {
-            setActive(true)
-        }
-        else
-        {
-            setHovering(false)
-        }
-    },[activeGame])
 
     useEffect(() => {
         if(!gatefoldRef.current)
@@ -496,13 +491,12 @@ function BigBox({position, g, onShelf}:BigBoxProps)
 
         setUseHighQuality(true);
         setHovering(false)
-        setControlsEnable(false);
-        setActiveGame(g)
 
         if(onShelf)
         {
-            window.history.replaceState(null, '', '/shelves/game/'+g.slug)
-            document.title = 'BigBoxDB | '+g.title
+            navigate("/shelves/game/"+g.slug);
+            // window.history.replaceState(null, '', '/shelves/game/'+g.slug)
+            // document.title = 'BigBoxDB | '+g.title
             // sendGTMEvent({ event: 'page_view', pagePath: '/shelves/game/'+g.slug })
         }
     }
@@ -529,7 +523,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
             position={[position.x, position.y, position.z]}
             rotation={[0, (g.dir == BoxShelfDirection.left ? Math.PI / 2 : 0), 0]}
             {...bind()}
-            onPointerOver={activeGame == null ? hover : undefined}
+            onPointerOver={!onShelf || !params.variantId ? hover : undefined}
             onPointerOut={unhover}
             onClick={activateGame}
             onDoubleClick={togGatefold}

@@ -5,7 +5,6 @@ import (
     "os"
     "strings"
     "strconv"
-    "log"
 
     "github.com/gin-gonic/gin"
 )

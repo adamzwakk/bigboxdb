@@ -1,25 +1,20 @@
 import {useStore} from "@/lib/Store";
-import {isEmpty} from "lodash";
+import { useNavigate, useParams } from "react-router";
 
 export default function BackBlur() {
 
-    const { activeGame,setActiveGame, setControlsEnable, isDragging } = useStore();
+    const { isDragging } = useStore();
+    const navigate = useNavigate();
+    const params = useParams()
 
     const handleClick = function(e:any){
         e.stopPropagation()
         if(isDragging) { return; }
-        if(!isEmpty(activeGame))
-        {
-            window.history.replaceState(null, '', '/shelves')
-            document.title = 'BigBoxDB | 3D Shelves'
-            
-            setControlsEnable(true)
-            setActiveGame(null)
-        }
+        navigate("/shelves");
     }
 
     return(
-        !isEmpty(activeGame) && 
+        params.variantId && 
         <mesh position-z={9} onPointerUp={(e) => {e.stopPropagation()}} onPointerEnter={(e) => {e.stopPropagation()}} onClick={handleClick}>
             <planeGeometry args={[1000,1000]} />
             <meshBasicMaterial color={0x000000} transparent={true} opacity={0.7} />

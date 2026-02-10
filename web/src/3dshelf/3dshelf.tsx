@@ -2,6 +2,8 @@ import Search from "@/partials/Search";
 import MainShelves from "./MainShelves";
 import ShelvesProvider from "./ShelvesProvider";
 import Footer from "@/partials/Footer";
+import Music from "./Music";
+import GameInfo from "./GameInfo";
 
 export default function ThreeDeeShelf(){
     return (
@@ -20,8 +22,8 @@ export default function ThreeDeeShelf(){
               <Search onShelf={true} />
               {/* <ShelfOptions /> */}
           </div>
-          {/* <GameInfo />
-          <Music /> */}
+          <GameInfo />
+          <Music />
           <div id="app">
             <MainShelves />
           </div>
