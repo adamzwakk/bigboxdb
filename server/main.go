@@ -68,6 +68,7 @@ func main() {
 			pub.GET("/all", handlers.GamesAll)
 
 			v := a.Group("/variants")
+			v.GET("/:id", handlers.VariantById)
 			v.GET("/all", handlers.VariantsAll)
 			v.GET("/latest", handlers.VariantsLatest)
 			v.GET("/botd", handlers.VariantsRandom)

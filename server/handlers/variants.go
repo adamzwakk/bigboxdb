@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"fmt"
 	"time"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,14 +28,17 @@ type VariantResponse struct {
 	Direction	int		`json:"dir"`
 	GatefoldTransparent	bool	`json:"gatefold_transparent"`
 	BoxType		uint	`json:"box_type"`
+	BoxTypeName		string	`json:"box_type_name"`
 	Developer	string	`json:"developer,omitempty"`
 	Publisher	string	`json:"publisher,omitempty"`
 	TexturePath	string	`json:"textureFileName"`
+	ContributedBy	string	`json:"contributed_by"`
 	AddedOn		time.Time	`json:"created_at"`
 }
 
 type queryOptions struct {
 	Order			string
+	WhereId			int
 	Limit			int
 	Offset			int
 	WithDeveloper	bool
@@ -55,8 +59,15 @@ func VariantsLatest(c *gin.Context){
 
 func VariantsRandom(c *gin.Context){
 	var o = queryOptions{Order:"rand()", Limit:1, Offset:0} 
-	var variants = getVariants(o)[0]
-	c.JSON(http.StatusOK, variants)
+	var variant = getVariants(o)[0]
+	c.JSON(http.StatusOK, variant)
+}
+
+func VariantById(c *gin.Context){
+	id, _ := strconv.Atoi(c.Param("id"))
+	var o = queryOptions{WhereId:id, Limit:1, Offset:0} 
+	var variant = getVariants(o)[0]
+	c.JSON(http.StatusOK, variant)
 }
 
 func getVariants(options queryOptions) []VariantResponse{
@@ -70,6 +81,8 @@ func getVariants(options queryOptions) []VariantResponse{
 	}).Preload("Region", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	}).Preload("Game.Platform", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "Name")
+	}).Preload("User", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	})
 
@@ -85,6 +98,10 @@ func getVariants(options queryOptions) []VariantResponse{
 		})
 	}
 
+	if options.WhereId > 0 {
+		q = q.Where("variants.id = ?", options.WhereId)
+	}
+
 	if options.Order != "" {
 		q = q.Order(options.Order)
 	}
@@ -92,8 +109,12 @@ func getVariants(options queryOptions) []VariantResponse{
 	if options.Limit != 0 {
 		q = q.Limit(options.Limit)
 	}
-
-	q.Find(&variants)
+	
+	if options.Limit == 1 {
+		q.First(&variants)
+	} else {
+		q.Find(&variants)
+	}
 
 	var resp []VariantResponse
 	for _, v := range variants {
@@ -118,7 +139,9 @@ func getVariants(options queryOptions) []VariantResponse{
 			D:		v.Depth,
 			Direction: dir,
 			BoxType:	v.BoxType.ID,
+			BoxTypeName:	v.BoxType.Name,
 			TexturePath: fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "box.glb"),
+			ContributedBy: v.User.Name,
 			AddedOn: v.CreatedAt,
 		})
 	}

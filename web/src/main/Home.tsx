@@ -4,10 +4,12 @@ import './main.scss'
 import HomeBlurb from '@/partials/HomeBlurb'
 import Search from '@/partials/Search'
 import SingleGame from '@/partials/SingleGame'
+import type { Game3D } from '@/lib/types'
 
 export default function Home() {
 
     const [latestGames,setLatestGames] = useState([])
+    const [botd,setBOTD] = useState<Game3D>()
 
     useEffect(() => {
         fetch('/api/variants/latest')
@@ -16,6 +18,12 @@ export default function Home() {
                 setLatestGames(data)
             })
             .catch(console.error)
+        
+        fetch('/api/variants/botd')
+            .then((res) => res.json())
+            .then((ga:Game3D) => {
+                setBOTD(ga)
+            })
     },[])
 
     return(
@@ -71,7 +79,7 @@ export default function Home() {
               </div>
               <div id="random-game" className='overflow-hidden relative w-full lg:w-80 lg:max-w-80 lg:flex-shrink-0 bg-black/50 p-5 h-150 max-w-6xl'>
                 <h2 className='text-[22px] text-center font-bold'>Box Of The Moment!</h2>
-                <SingleGame slug={false} zd={-6} showFooter={true} />
+                {botd && <SingleGame ga={botd} zd={-6} showTitle={true} showFooter={true} />}
               </div>
             </div>
         </div>

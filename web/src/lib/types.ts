@@ -78,7 +78,7 @@ export type Game = {
 	h: number,
 
 	scan_notes?: string
-	contributor?: string
+	contributed_by?: string
 	description?: string
 	worth_front_view?: boolean
 	publishers?:Array<any>
@@ -93,6 +93,7 @@ export type Game3D = Game &
     shelfZ?: number,
 	textureFileName?: string,
     boxGeo?: BufferGeometry|BoxGeometry,
+	box_type_name?: string
 }
 
 export type StatsProps = {
