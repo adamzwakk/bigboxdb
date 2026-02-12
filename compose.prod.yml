@@ -12,12 +12,16 @@ services:
       - REDIS_ADDR=redis:6379
     build:
       context: .
-      dockerfile: Dockerfile.api
-    image: bigboxdb-api:latest
-    container_name: bigboxdb-api
+      dockerfile: Dockerfile
+    image: bigboxdb-server:latest
+    container_name: bigboxdb-server
+    userns_mode: keep-id
     volumes:
-      - ./dist/web:/app/web:ro
-      - ./data-uploads-prod:/app/uploads/scans ## Maybe fix local mount for paranoia reasons
+      - ./uploads:/app/uploads/scans
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/supervisord.conf:/etc/supervisord.conf
+    ports:
+      - 8081:8081
     networks:
       - bbdb_network
     depends_on:
@@ -27,6 +31,7 @@ services:
   redis:
     image: redis:alpine
     restart: no
+    userns_mode: keep-id
     volumes:
       - ./data-redis-prod:/data
   
@@ -34,6 +39,7 @@ services:
     image: mariadb:lts
     restart: no
     env_file: ".env"
+    userns_mode: keep-id
     volumes:
       - ./data-sql-prod:/var/lib/mysql
     networks:
@@ -41,6 +47,7 @@ services:
 
   meilisearch:
     image: getmeili/meilisearch:v1.35
+    userns_mode: keep-id
     volumes:
       - ./data-ms-prod:/meili_data
     environment:
@@ -50,20 +57,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  nginx:
-    image: nginx:latest
-    restart: no
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./dist/web:/usr/share/nginx/html
-      - ./data-uploads-prod:/usr/share/nginx/html/scans:ro
-    ports:
-      - 8081:80
-    depends_on:
-      - mariadb
-      - redis
-      - server
     networks:
       - bbdb_network
 

@@ -8,7 +8,7 @@ services:
     ports:
       - 6379:6379
     volumes:
-      - ./data-redis:/data
+      - ./data-redis:/data:U
   
   mariadb:
     image: mariadb:lts
@@ -24,7 +24,7 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.35
     volumes:
-      - ./data-ms://meili_data
+      - ./data-ms:/meili_data
     ports:
       - "7700:7700"
     environment:

@@ -24,13 +24,13 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../dist/web',
-    emptyOutDir: true, // also necessary
+    emptyOutDir: true,
   },
   server:{
     proxy:{
          '/api': 'http://localhost:8080',
          '/scans': 'http://localhost:8080',
+         '/search': 'http://localhost:7700',
     }
   },
   envDir: '../.'

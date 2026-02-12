@@ -10,6 +10,7 @@ pkgs.mkShell {
 
     pkgs.just
     pkgs.lazysql
+    pkgs.zip
   ];
 
   shellHook = ''

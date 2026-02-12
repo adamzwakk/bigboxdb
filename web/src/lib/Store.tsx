@@ -1,5 +1,5 @@
 import {create} from "zustand";
-import type { Game3D, SearchIndex, ShelfProps } from "@/lib/types";
+import type { SearchIndex, ShelfProps } from "@/lib/types";
 
 interface BigBoxDBState {
     goToSearchedGame:{variant_id:number,slug:string}|null

@@ -39,5 +39,23 @@ web-dev:
 web-build:
     cd web && npm run build
 
+prod-up:
+    podman compose -f compose.prod.yml up -d
+
+prod-down:
+    podman compose -f compose.prod.yml down
+
 prod-build:
-    just web-build && podman compose -f compose.prod.yml build server && podman compose -f compose.prod.yml up -d
+    podman compose -f compose.prod.yml build server && podman compose -f compose.prod.yml up -d
+
+prod-build-nc:
+    podman compose -f compose.prod.yml build server --no-cache && podman compose -f compose.prod.yml up -d
+
+prod-migrate:
+    podman compose -f compose.prod.yml exec server /app/bin/server migrate 
+
+prod-get-admin-key:
+    podman compose -f compose.prod.yml exec mariadb mariadb -D "${MYSQL_DATABASE}" -u ${MYSQL_USER} -p${MYSQL_PASSWORD} -N -s -e "select api_key from users where id = 1;"
+
+prod-get-meilisearch-key:
+    podman compose -f compose.prod.yml exec server /app/bin/server init-meilisearch
