@@ -30,6 +30,9 @@ build-release:
 get-admin-key:
     podman compose exec mariadb mariadb -D "${MYSQL_DATABASE}" -u ${MYSQL_USER} -p${MYSQL_PASSWORD} -N -s -e "select api_key from users where id = 1;"
 
+get-meilisearch-key:
+    cd server && go run . init-meilisearch
+
 web-install:
     cd web && npm install
 

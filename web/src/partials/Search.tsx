@@ -38,7 +38,7 @@ export default function Search({onShelf}:{onShelf:boolean})
                 searchRef.current.value = ''
             }
         } else if(!onShelf && goToSearchedGame) {
-            navigate('/game/'+goToSearchedGame.slug)
+            navigate('/game/'+goToSearchedGame.slug+'/'+goToSearchedGame.variant_id)
         }
     },[goToSearchedGame, onShelf])
     
