@@ -8,7 +8,7 @@ type Variant struct{
 	ID						uint
 
 	GameID					uint
-	Game					Game	`gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Game					Game	`gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"` // We'll never need to recursively send back game in JSON
 
 	DeveloperID				uint
 	Developer				Developer	`gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

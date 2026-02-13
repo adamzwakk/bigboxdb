@@ -42,6 +42,7 @@ type queryOptions struct {
 	Select			string
 	Order			string
 	WhereId			int
+	WhereSlug		string
 	Limit			int		`default:"0"`
 	Offset			int		`default:"0"`
 	GroupBy			string

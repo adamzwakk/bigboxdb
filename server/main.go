@@ -60,6 +60,7 @@ func main() {
 
 			g := a.Group("/games")
 			g.GET("/all", handlers.GamesAll)
+			g.GET("/:slug", handlers.GameBySlug)
 
 			dev := a.Group("/developers")
 			dev.GET("/all", handlers.DevelopersAll)
