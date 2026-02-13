@@ -40,8 +40,8 @@ type ImportData struct{
 	Publisher		FirstString	`json:"publisher"`
 	Platform		string	`json:"platform"`
 	ScanNotes		string	`json:"scan_notes,omitempty"`
-	IGDBId			int		`json:"igdb_version,omitempty"`
-	MobygamesId		int		`json:"mobygames_id,omitempty"`
+	IGDBId			*int		`json:"igdb_version,omitempty"`
+	MobygamesId		*int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
 	Links			map[string]string `json:"links"`
@@ -294,6 +294,8 @@ func ImportFromSource(source FileSource) error {
 		Slug:        slugTitle,
 		Description: data.Description,
 		PlatformID:  platform.ID,
+		MobygamesID: data.MobygamesId,
+		IgdbID: data.IGDBId,
 		Links: links,
 	}
 
@@ -302,6 +304,8 @@ func ImportFromSource(source FileSource) error {
 		DoUpdates: clause.AssignmentColumns([]string{
 			"title",
 			"description",
+			"mobygames_id",
+			"igdb_id",
 		}),
 	}).Create(&game)
 

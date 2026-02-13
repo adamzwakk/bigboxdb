@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"fmt"
+	// "log"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm/clause"
@@ -18,12 +19,20 @@ type GameResponse struct {
 	Variant		[]MiniVariantResponse	`json:"variants"`
 	Slug		string	`json:"slug"`
 	Description	*string	`json:"description"`
+	Links		[]LinkResponse `json:"links"`
+	MobygamesID	int	`json:"mobygames_id"`
 }
 
 type MiniVariantResponse struct {
 	ID			uint	`json:"id"`
 	Desc		string	`json:"name"`
 	TexturePath string	`json:"textureFileName"`
+}
+
+type LinkResponse struct {
+	ID			uint	`json:"id"`
+	Name		string	`json:"name"`
+	Link		string	`json:"link"`
 }
 
 func GamesAll(c *gin.Context){
@@ -51,8 +60,11 @@ func getGames(options queryOptions) []GameResponse {
 
 	q := d.Model(&models.Game{}).Preload("Variants", func(db *gorm.DB) *gorm.DB {
         return db.Select("id", "game_id", "description")
-    })
-
+    }).Preload("Links", func(db *gorm.DB) *gorm.DB {
+        return db.Select("id", "game_id", "type_id", "link")
+    }).Preload("Links.Type", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "SmallName")
+	})
 
 	if options.WhereId > 0 {
 		q = q.Where("games.id = ?", options.WhereId)
@@ -90,12 +102,23 @@ func getGames(options queryOptions) []GameResponse {
 			})
 		}
 
+		var links []LinkResponse
+		for _, l := range g.Links {
+			links = append(links, LinkResponse{
+				ID:	l.ID,
+				Name: l.Type.SmallName,
+				Link: l.Link,
+			})
+		}
+
 		resp = append(resp, GameResponse{
 			ID:	g.ID,
 			Title: g.Title,
 			Slug: g.Slug,
 			Description: g.Description,
+			MobygamesID: *g.MobygamesID,
 			Variant: miniVariants,
+			Links: links,
 		})
 	}
 

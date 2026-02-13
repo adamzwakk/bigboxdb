@@ -17,8 +17,8 @@ type Game struct{
 	PlatformID				uint
 	Platform				Platform
 
-	MobygamesID				int
-	IgdbID					int
+	MobygamesID				*int
+	IgdbID					*int
 	
 	SteamLink				*string
 	GogLink					*string
