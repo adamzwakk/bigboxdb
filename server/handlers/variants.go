@@ -39,37 +39,84 @@ type VariantResponse struct {
 }
 
 type queryOptions struct {
+	Select			string
 	Order			string
 	WhereId			int
-	Limit			int
-	Offset			int
+	Limit			int		`default:"0"`
+	Offset			int		`default:"0"`
+	GroupBy			string
 	WithDeveloper	bool
 	WithPublisher	bool
 }
 
-func VariantsAll(c *gin.Context){
-	var o = queryOptions{Order:"Game.Title asc", Limit:0, Offset:0, WithDeveloper:true, WithPublisher:true} 
-	var variants = getVariants(o)
-	c.JSON(http.StatusOK, variants)
+type BoxTypeCount struct {
+    Name  string	`json:"name"`
+    Count int64		`json:"count"`
 }
 
-func VariantsLatest(c *gin.Context){
-	var o = queryOptions{Order:"created_at desc", Limit:20, Offset:0} 
-	var variants = getVariants(o)
-	c.JSON(http.StatusOK, variants)
+func VariantsAll(c *gin.Context) {
+    variants, err := db.GetOrSetCache("variants:all", 10*time.Minute, func() ([]VariantResponse, error) {
+        o := queryOptions{Order: "Game.Title asc", WithDeveloper: true, WithPublisher: true}
+        return getVariants(o), nil
+    })
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, variants)
 }
 
-func VariantsRandom(c *gin.Context){
-	var o = queryOptions{Order:"rand()", Limit:1, Offset:0} 
-	var variant = getVariants(o)[0]
-	c.JSON(http.StatusOK, variant)
+func VariantsLatest(c *gin.Context) {
+    variants, err := db.GetOrSetCache("variants:latest", 10*time.Minute, func() ([]VariantResponse, error) {
+        o := queryOptions{Order: "created_at desc", Limit: 20}
+        return getVariants(o), nil
+    })
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, variants)
 }
 
-func VariantById(c *gin.Context){
-	id, _ := strconv.Atoi(c.Param("id"))
-	var o = queryOptions{WhereId:id, Limit:1, Offset:0} 
-	var variant = getVariants(o)[0]
-	c.JSON(http.StatusOK, variant)
+func VariantById(c *gin.Context) {
+    id := c.Param("id")
+    key := fmt.Sprintf("variant:%s", id)
+    
+    variant, err := db.GetOrSetCache(key, 5*time.Minute, func() (VariantResponse, error) {
+        idInt, _ := strconv.Atoi(id)
+        o := queryOptions{WhereId: idInt, Limit: 1}
+        return getVariants(o)[0], nil
+    })
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, variant)
+}
+
+func VariantsRandom(c *gin.Context) {
+    // Don't cache random - always fetch fresh
+    o := queryOptions{Order: "rand()", Limit: 1}
+    c.JSON(http.StatusOK, getVariants(o)[0])
+}
+
+func VariantsCountBoxTypes(c *gin.Context) {
+    results, err := db.GetOrSetCache("variants:count_by_box_type", 10*time.Minute, func() ([]BoxTypeCount, error) {
+        d := db.GetDB()
+        var results []BoxTypeCount
+        err := d.Model(&models.Variant{}).
+            Joins("JOIN box_types ON box_types.id = variants.box_type_id").
+            Select("box_types.name, COUNT(*) as count").
+            Group("box_types.name").
+            Scan(&results).Error
+        return results, err
+    })
+    
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, results)
 }
 
 func getVariants(options queryOptions) []VariantResponse{
@@ -111,6 +158,10 @@ func getVariants(options queryOptions) []VariantResponse{
 	if options.Limit != 0 {
 		q = q.Limit(options.Limit)
 	}
+
+	if options.GroupBy != "" {
+		q = q.Group(options.GroupBy)
+	}
 	
 	if options.Limit == 1 {
 		q.First(&variants)
@@ -128,7 +179,7 @@ func getVariants(options queryOptions) []VariantResponse{
 			ID:            v.ID,
 			GameID:		v.Game.ID,
 			GameTitle:	v.Game.Title,
-			VariantDesc:	fmt.Sprintf("%s %s", v.Description, v.BoxType.Name),
+			VariantDesc:	fmt.Sprintf("%s", v.Description),
 			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
 			Region:		v.Region.Name,
 			Year:		v.Year,

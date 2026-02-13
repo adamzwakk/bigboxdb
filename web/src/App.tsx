@@ -4,6 +4,7 @@ import Home from './main/Home';
 import ThreeDeeShelf from './3dshelf/3dshelf';
 import Footer from './partials/Footer';
 import Variant from './main/Variant';
+import Faq from './main/Faq';
 
 function MainLayout() {
   return (
@@ -32,6 +33,7 @@ function App() {
         <Routes>
             <Route path="/" element={<MainLayout />}>
                 <Route index element={<Home />} />
+                <Route path="/faq" element={<Faq />} />
                 <Route path="/game/:gameSlug/:variantId" element={<Variant />} />
             </Route>
             <Route path="/shelves">

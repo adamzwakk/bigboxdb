@@ -54,7 +54,7 @@ export default function Home() {
                   <table className='table-auto md:table-fixed w-full'>
                     <thead>
                       <tr>
-                        <th className='text-left'>Title</th>
+                        <th className='text-left w-[80%]'>Title</th>
                         <th className='text-right'>Date Added</th>
                       </tr>
                     </thead>
@@ -65,7 +65,7 @@ export default function Home() {
                             <td className='p-1'>
                               <a href={"/game/"+game.slug}>
                                 <img className='inline-block mr-2' src={"/scans/"+game.slug+"/front.webp"} width={24} alt={game.title} />
-                                <span className='underline'>{game.title}</span>
+                                <span className='underline'>{game.title}{ game.variant.length > 2 && <span>&nbsp;({game.variant})</span>}</span>
                               </a>
                             </td>
                             <td className='p-1 text-right'>{new Date(game.created_at).toLocaleDateString()}</td>

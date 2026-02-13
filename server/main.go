@@ -72,6 +72,7 @@ func main() {
 			v.GET("/all", handlers.VariantsAll)
 			v.GET("/latest", handlers.VariantsLatest)
 			v.GET("/botd", handlers.VariantsRandom)
+			v.GET("/typecount", handlers.VariantsCountBoxTypes)
 
 			ad := a.Group("/admin")
 			ad.Use(handlers.AuthMiddleware())
