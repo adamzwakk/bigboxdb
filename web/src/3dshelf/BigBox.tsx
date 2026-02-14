@@ -65,7 +65,7 @@ function useInView(ref: React.RefObject<THREE.Group | null>, margin = 1.5) {
 }
 
 // Lazy-loaded model component with KTX2 support
-function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gatefoldRef: React.RefObject<Array<{"name":string, "mesh":THREE.Object3D}> | null>, useHighQuality: boolean, onShelf: boolean }) {
+function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gatefoldRef: React.RefObject<Array<{"name":string, "mesh":THREE.Object3D,"anim":any}> | null>, useHighQuality: boolean, onShelf: boolean }) {
     const { gl } = useThree();
     const modelRef = useRef<THREE.Group>(null);
     const modelPath = useMemo(() => {
@@ -133,13 +133,16 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                 }
                 // console.log(child.name)
                 if(child.name.includes('Gatefold') && child instanceof THREE.Mesh) {
-                    gatefoldRef.current?.push({name:child.name,mesh:child});
+                    
                     
                     child.geometry.computeBoundingBox();
                     let bounds = child.geometry.boundingBox;
                     const leftEdge = bounds.min.x;
                     const topEdge = bounds.max.y;
                     const zCenter = (bounds.min.z + bounds.max.z) / 2;
+
+                    let anim
+                    let easing = "power2.inOut"
                     
                     if(!bounds) return;
                     
@@ -148,6 +151,12 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                         child.geometry.translate(0, -topEdge, -zCenter);
                         child.geometry.computeBoundingBox();
                         child.position.set(0, g.h!/2, g.d!/2);
+
+                        anim = {
+                            x: -Math.PI,
+                            duration: 0.5,
+                            ease: easing
+                        }
                         
                     } 
                     else if(g.box_type === BigBoxTypes.Big_Box_With_Back_Gatefold) 
@@ -158,6 +167,12 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                         
                         // Position at left edge and BACK face (negative Z)
                         child.position.set(-g.w!/2, 0, -g.d!/2);
+
+                        anim = {
+                            y: Math.PI,
+                            duration: 0.5,
+                            ease: easing
+                        }
                     } 
                     else if(g.box_type === BigBoxTypes.Big_Box_With_Front_And_Back_Gatefold && child.name == 'GatefoldBack')                      
                     {
@@ -165,6 +180,12 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                         child.geometry.translate(-leftEdge-g.w, 0, -zCenter);
                         child.geometry.computeBoundingBox();
                         child.position.set(g.w/2, 0, -g.d!/2);
+
+                        anim = {
+                            y: -Math.PI,
+                            duration: 0.5,
+                            ease: easing
+                        }
                     }
                     else 
                     {
@@ -172,7 +193,15 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                         child.geometry.translate(-leftEdge, 0, -zCenter);
                         child.geometry.computeBoundingBox();
                         child.position.set(-g.w!/2, 0, g.d!/2);
+
+                        anim = {
+                            y: -Math.PI,
+                            duration: 0.5,
+                            ease: easing
+                        }
                     }
+
+                    gatefoldRef.current?.push({name:child.name,mesh:child,anim:anim});
                 }
                 
                 // Handle transparency for gatefold materials
@@ -213,7 +242,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
     const rotateXTo = useRef<gsap.QuickToFunc | null>(null);
     const rotateYTo = useRef<gsap.QuickToFunc | null>(null);
 
-    const gatefoldRef = useRef<Array<{"name":string, "mesh":THREE.Object3D}> | null>([]);
+    const gatefoldRef = useRef<Array<{"name":string, "mesh":THREE.Object3D,"anim":any}> | null>([]);
     const {camera, size, viewport} = useThree()
     const aspect = size.width / viewport.width;
     const [hovering, setHovering] = useState(false)
@@ -407,50 +436,9 @@ function BigBox({position, g, onShelf}:BigBoxProps)
         const gatefoldItems = gatefoldRef.current;
         gatefoldItems.forEach((item) => {
             let gatefold = item.mesh
-            let gfname = item.name
             if(gatefoldOpen)
             {
-                if(VerticalGatefoldTypes.has(g.box_type)) {
-                    gsap.to(gatefold.rotation, {
-                        x: -Math.PI,
-                        duration: 0.5,
-                        ease: "power2.inOut"
-                    });
-                    // gsap.to(group!.position, {
-                    //     y: group!.position.y-(g.h/2),
-                    //     duration: 0.5,
-                    //     ease: "power2.inOut"
-                    // });
-                } 
-                else if(g.box_type === BigBoxTypes.Big_Box_With_Back_Gatefold) 
-                {
-                    gsap.to(gatefold.rotation, {
-                        y: Math.PI,
-                        duration: 0.5,
-                        ease: "power2.inOut"
-                    });
-                }
-                else if(gfname == 'GatefoldBack') 
-                {
-                    gsap.to(gatefold.rotation, {
-                        y: -Math.PI,
-                        duration: 0.5,
-                        ease: "power2.inOut"
-                    });
-                }
-                else 
-                {
-                    gsap.to(gatefold.rotation, {
-                        y: -Math.PI,
-                        duration: 0.5,
-                        ease: "power2.inOut"
-                    });
-                    // gsap.to(group!.position, {
-                    //     x: group!.position.x+(g.w/2),
-                    //     duration: 0.5,
-                    //     ease: "power2.inOut"
-                    // });
-                }
+                gsap.to(gatefold.rotation, item.anim);
             }
             else
             {
@@ -460,22 +448,6 @@ function BigBox({position, g, onShelf}:BigBoxProps)
                     duration: 0.5,
                     ease: "power2.inOut"
                 });
-                // if(VerticalGatefoldTypes.has(g.box_type)) 
-                // {
-                //     gsap.to(group!.position, {
-                //         y: group!.position.y-(g.h/2),
-                //         duration: 0.5,
-                //         ease: "power2.inOut"
-                //     });
-                // }
-                // else
-                // {
-                //     gsap.to(group!.position, {
-                //         x: group!.position.x-(g.w/2),
-                //         duration: 0.5,
-                //         ease: "power2.inOut"
-                //     });
-                // }
             }
         })
     },[gatefoldOpen])
