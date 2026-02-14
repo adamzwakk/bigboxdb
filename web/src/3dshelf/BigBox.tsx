@@ -161,7 +161,7 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
                     } 
                     else if(g.box_type === BigBoxTypes.Big_Box_With_Back_Gatefold) 
                     {
-                        // BACK GATEFOLD - hinge on left, but at back face                       
+                        // BACK GATEFOLD - hinge on right, but at back face                       
                         child.geometry.translate(-leftEdge, 0, -zCenter);
                         child.geometry.computeBoundingBox();
                         
