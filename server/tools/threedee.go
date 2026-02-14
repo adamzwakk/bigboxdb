@@ -26,6 +26,17 @@ const (
 	OutputFormat        = "glb"
 )
 
+// GatefoldMode describes how gatefolds are arranged on a box
+type GatefoldMode int
+
+const (
+	GatefoldNone         GatefoldMode = iota
+	GatefoldSingleFront               // One full-width flap on front
+	GatefoldSingleBack                // One full-width flap on back
+	GatefoldDoubleFront               // Two half-width flaps on front (book/double-door)
+	GatefoldFrontAndBack              // One full-width flap on front AND one on back
+)
+
 type GameInfo struct {
 	Title   string  `json:"title"`
 	Width   float32 `json:"width"`
@@ -43,8 +54,8 @@ type AtlasResult struct {
 	OriginalDimensions image.Point
 }
 
-// MeshPart holds the geometry data for a single distinct object (e.g. "Box", "GatefoldLeft")
-// Refactored to allow N amount of pieces for Three.js animation targets
+// MeshPart holds the geometry data for a single distinct object (e.g. "Box", "GatefoldFront")
+// Each part becomes a separately named node in the glTF so Three.js can target it for animation
 type MeshPart struct {
 	Name      string
 	Positions [][3]float32
@@ -78,21 +89,30 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		var tw float32 = 5.75
 		topWidth = &tw
 	}
-	gatefoldOnBack := boxType == models.FindBoxTypeIDByName("Big Box With Back Gatefold")
 
-	// Sort texture paths
+	// Determine gatefold mode from box type
+	gatefoldMode := determineGatefoldMode(boxType)
+
+	// Sort texture paths — detect all gatefold texture variants
 	boxSortedPaths := make([]string, 6)
-	var gatefoldRightPath, gatefoldLeftPath string
+	gatefoldPaths := make(map[string]string) // key: "left", "right", "front_left", "front_right", "back"
 	boxSideNames := []string{"front", "back", "top", "bottom", "right", "left"}
 
 	for _, path := range texturePaths {
 		filenameLower := strings.ToLower(filepath.Base(path))
 
-		if strings.Contains(filenameLower, "gatefold_right") {
-			gatefoldRightPath = path
-		} else if strings.Contains(filenameLower, "gatefold_left") {
-			gatefoldLeftPath = path
-		} else {
+		switch {
+		case strings.Contains(filenameLower, "gatefold_front_left"):
+			gatefoldPaths["front_left"] = path
+		case strings.Contains(filenameLower, "gatefold_front_right"):
+			gatefoldPaths["front_right"] = path
+		case strings.Contains(filenameLower, "gatefold_back"):
+			gatefoldPaths["back"] = path
+		case strings.Contains(filenameLower, "gatefold_right"):
+			gatefoldPaths["right"] = path
+		case strings.Contains(filenameLower, "gatefold_left"):
+			gatefoldPaths["left"] = path
+		default:
 			for i, side := range boxSideNames {
 				if strings.Contains(filenameLower, side) && boxSortedPaths[i] == "" {
 					boxSortedPaths[i] = path
@@ -109,7 +129,30 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		}
 	}
 
-	hasGatefold := gatefoldRightPath != "" && gatefoldLeftPath != ""
+	// Determine if we actually have gatefold textures for the requested mode
+	hasGatefold := false
+	switch gatefoldMode {
+	case GatefoldSingleFront:
+		// Need legacy left+right, or front_left+front_right
+		hasGatefold = (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "")
+	case GatefoldSingleBack:
+		hasGatefold = (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["back"] != "")
+	case GatefoldDoubleFront:
+		hasGatefold = gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != ""
+	case GatefoldFrontAndBack:
+		// Need textures for both front and back flaps
+		hasFront := (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "")
+		hasBack := gatefoldPaths["back"] != "" ||
+			(gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "")
+		hasGatefold = hasFront && hasBack
+	}
+
+	if !hasGatefold {
+		gatefoldMode = GatefoldNone
+	}
 
 	// Pack textures into atlas
 	imagesToPack := make(map[string]image.Image)
@@ -120,28 +163,93 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	}
 
 	if hasGatefold {
-		// Load gatefold images
-		gatefoldRightImg := loadAndResizeImage(gatefoldRightPath, lowQuality)
-		gatefoldLeftImg := loadAndResizeImage(gatefoldLeftPath, lowQuality)
+		switch gatefoldMode {
+		case GatefoldSingleFront:
+			// Resolve texture paths — prefer new naming, fall back to legacy
+			rightPath := gatefoldPaths["front_right"]
+			if rightPath == "" {
+				rightPath = gatefoldPaths["right"]
+			}
+			leftPath := gatefoldPaths["front_left"]
+			if leftPath == "" {
+				leftPath = gatefoldPaths["left"]
+			}
 
-		// Determine which base face the gatefold replaces
-		baseIndex := 0 // front
-		if gatefoldOnBack {
-			baseIndex = 1 // back
-		}
-		baseFaceName := boxSideNames[baseIndex]
+			gatefoldRightImg := loadAndResizeImage(rightPath, lowQuality)
+			gatefoldLeftImg := loadAndResizeImage(leftPath, lowQuality)
 
-		// Store the base face as gatefold_front
-		baseFaceImg := imagesToPack[baseFaceName]
-		imagesToPack["gatefold_front"] = baseFaceImg
+			// The original front face becomes the inside of the gatefold
+			baseFaceImg := imagesToPack["front"]
+			imagesToPack["gatefold_front_inner"] = baseFaceImg
 
-		// Replace the base face with gatefold_right, store gatefold_left as gatefold_back
-		if gatefoldOnBack {
-			imagesToPack[baseFaceName] = gatefoldLeftImg
-			imagesToPack["gatefold_back"] = gatefoldRightImg
-		} else {
-			imagesToPack[baseFaceName] = gatefoldRightImg
-			imagesToPack["gatefold_back"] = gatefoldLeftImg
+			// The outer face shows gatefold_right, the back shows gatefold_left
+			imagesToPack["front"] = gatefoldRightImg
+			imagesToPack["gatefold_front_back"] = gatefoldLeftImg
+
+		case GatefoldSingleBack:
+			rightPath := gatefoldPaths["right"]
+			leftPath := gatefoldPaths["left"]
+
+			gatefoldRightImg := loadAndResizeImage(rightPath, lowQuality)
+			gatefoldLeftImg := loadAndResizeImage(leftPath, lowQuality)
+
+			// The original back face becomes the inside of the gatefold
+			baseFaceImg := imagesToPack["back"]
+			imagesToPack["gatefold_back_inner"] = baseFaceImg
+
+			// gatefold_left replaces the back face, gatefold_right is the outer back
+			imagesToPack["back"] = gatefoldLeftImg
+			imagesToPack["gatefold_back_back"] = gatefoldRightImg
+
+		case GatefoldDoubleFront:
+			frontLeftImg := loadAndResizeImage(gatefoldPaths["front_left"], lowQuality)
+			frontRightImg := loadAndResizeImage(gatefoldPaths["front_right"], lowQuality)
+
+			// The original front face becomes the inside (visible when doors open)
+			baseFaceImg := imagesToPack["front"]
+			imagesToPack["gatefold_double_inner"] = baseFaceImg
+
+			// Each flap's outer face
+			imagesToPack["gatefold_front_left"] = frontLeftImg
+			imagesToPack["gatefold_front_right"] = frontRightImg
+
+			// Optional: if there's a gatefold_back texture, use it for the back of the flaps
+			if gatefoldPaths["back"] != "" {
+				gatefoldBackImg := loadAndResizeImage(gatefoldPaths["back"], lowQuality)
+				imagesToPack["gatefold_double_back"] = gatefoldBackImg
+			}
+
+		case GatefoldFrontAndBack:
+			// Front flap — prefer new naming, fall back to legacy
+			frontRightPath := gatefoldPaths["front_right"]
+			if frontRightPath == "" {
+				frontRightPath = gatefoldPaths["right"]
+			}
+			frontLeftPath := gatefoldPaths["front_left"]
+			if frontLeftPath == "" {
+				frontLeftPath = gatefoldPaths["left"]
+			}
+
+			frontRightImg := loadAndResizeImage(frontRightPath, lowQuality)
+			frontLeftImg := loadAndResizeImage(frontLeftPath, lowQuality)
+
+			// Original front face → inside of front gatefold
+			frontBaseImg := imagesToPack["front"]
+			imagesToPack["gatefold_front_inner"] = frontBaseImg
+			imagesToPack["front"] = frontRightImg
+			imagesToPack["gatefold_front_back"] = frontLeftImg
+
+			// Back flap
+			backPath := gatefoldPaths["back"]
+			if backPath == "" {
+				backPath = gatefoldPaths["right"]
+			}
+			backImg := loadAndResizeImage(backPath, lowQuality)
+
+			// Original back face → inside of back gatefold
+			backBaseImg := imagesToPack["back"]
+			imagesToPack["gatefold_back_inner"] = backBaseImg
+			imagesToPack["gatefold_back_back"] = backImg
 		}
 	}
 
@@ -159,7 +267,7 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	}
 
 	// Generate array of distinct MeshParts
-	meshParts := generateGeometry(gameInfo, atlasResult, hasGatefold, gatefoldOnBack, topWidth)
+	meshParts := generateGeometry(gameInfo, atlasResult, gatefoldMode, topWidth)
 
 	// Generate glTF structured document
 	doc, err := generateGLTFDocument(gameInfo, meshParts, atlasFilename)
@@ -181,6 +289,22 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	}
 
 	return nil
+}
+
+// determineGatefoldMode maps box type names to gatefold configurations
+func determineGatefoldMode(boxType uint) GatefoldMode {
+	switch boxType {
+	case models.FindBoxTypeIDByName("Big Box With Back Gatefold"):
+		return GatefoldSingleBack
+	case models.FindBoxTypeIDByName("Big Box With Double Gatefold"):
+		return GatefoldDoubleFront
+	case models.FindBoxTypeIDByName("Big Box With Front And Back Gatefold"):
+		return GatefoldFrontAndBack
+	default:
+		// All other gatefold-capable types use single front
+		// The caller will check if gatefold textures actually exist
+		return GatefoldSingleFront
+	}
 }
 
 // generateGLTFDocument dynamically loops through N amount of MeshParts
@@ -450,7 +574,7 @@ func saveAsKTX2(img image.Image, outputPath, compression string, quality int) bo
 	return true
 }
 
-func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatefoldOnBack bool, topWidth *float32) []*MeshPart {
+func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode GatefoldMode, topWidth *float32) []*MeshPart {
 	w := gameInfo.Width / 2.0
 	h := gameInfo.Height / 2.0
 	d := gameInfo.Depth / 2.0
@@ -470,19 +594,19 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 
 	// Box vertices (8 vertices for the box)
 	boxVerts := [][3]float32{
-		{float32(-w), float32(-h), float32(d)},   // 0
-		{float32(w), float32(-h), float32(d)},    // 1
-		{float32(topW), float32(h), float32(d)},  // 2
-		{float32(-topW), float32(h), float32(d)}, // 3
-		{float32(-w), float32(-h), float32(-d)},  // 4
-		{float32(w), float32(-h), float32(-d)},   // 5
-		{float32(topW), float32(h), float32(-d)}, // 6
+		{float32(-w), float32(-h), float32(d)},    // 0
+		{float32(w), float32(-h), float32(d)},     // 1
+		{float32(topW), float32(h), float32(d)},   // 2
+		{float32(-topW), float32(h), float32(d)},  // 3
+		{float32(-w), float32(-h), float32(-d)},   // 4
+		{float32(w), float32(-h), float32(-d)},    // 5
+		{float32(topW), float32(h), float32(-d)},  // 6
 		{float32(-topW), float32(h), float32(-d)}, // 7
 	}
 
 	// Dynamic slice of mesh parts
 	parts := []*MeshPart{}
-	
+
 	boxMesh := &MeshPart{Name: "Box"}
 	parts = append(parts, boxMesh)
 
@@ -608,6 +732,86 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+1, baseIdx+2)
 	}
 
+	// addGatefoldPanel generates a full 6-face panel (front, back, top, bottom, left, right)
+	// for a gatefold flap. frontTex/backTex are the atlas keys for the unique faces;
+	// edges reuse the main box textures.
+	addGatefoldPanel := func(mesh *MeshPart, verts [][3]float32, frontTex, backTex string,
+		frontNormal, backNormal [3]float32, trapRatio *float32,
+		flipBack bool, flipVert *bool, backRotation int) {
+
+		// Front face (verts 0-3)
+		uvFront := addUVSet(frontTex, trapRatio, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[0], verts[1], verts[2]},
+				[][2]float32{uvFront[0], uvFront[1], uvFront[2]}, frontNormal)
+			addTri(mesh, [][3]float32{verts[0], verts[2], verts[3]},
+				[][2]float32{uvFront[0], uvFront[2], uvFront[3]}, frontNormal)
+		} else {
+			addQuad(mesh, [][3]float32{verts[0], verts[1], verts[2], verts[3]},
+				uvFront, frontNormal)
+		}
+
+		// Back face (verts 4-7)
+		uvBack := addUVSet(backTex, trapRatio, false, flipBack, flipVert, backRotation)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[5], verts[4], verts[7]},
+				[][2]float32{uvBack[0], uvBack[1], uvBack[2]}, backNormal)
+			addTri(mesh, [][3]float32{verts[5], verts[7], verts[6]},
+				[][2]float32{uvBack[0], uvBack[2], uvBack[3]}, backNormal)
+		} else {
+			addQuad(mesh, [][3]float32{verts[5], verts[4], verts[7], verts[6]},
+				uvBack, backNormal)
+		}
+
+		// Top face (reuse box top texture)
+		uvTop := addUVSet("top", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[3], verts[2], verts[6]},
+				[][2]float32{uvTop[0], uvTop[1], uvTop[2]}, [3]float32{0, 1, 0})
+			addTri(mesh, [][3]float32{verts[3], verts[6], verts[7]},
+				[][2]float32{uvTop[0], uvTop[2], uvTop[3]}, [3]float32{0, 1, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[3], verts[2], verts[6], verts[7]},
+				uvTop, [3]float32{0, 1, 0})
+		}
+
+		// Bottom face (reuse box bottom texture)
+		uvBot := addUVSet("bottom", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[1], verts[5], verts[4]},
+				[][2]float32{uvBot[2], uvBot[3], uvBot[0]}, [3]float32{0, -1, 0})
+			addTri(mesh, [][3]float32{verts[1], verts[4], verts[0]},
+				[][2]float32{uvBot[2], uvBot[0], uvBot[1]}, [3]float32{0, -1, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[1], verts[5], verts[4], verts[0]},
+				uvBot, [3]float32{0, -1, 0})
+		}
+
+		// Right edge (reuse box right texture)
+		uvRight := addUVSet("right", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[1], verts[5], verts[6]},
+				[][2]float32{uvRight[0], uvRight[1], uvRight[2]}, [3]float32{1, 0, 0})
+			addTri(mesh, [][3]float32{verts[1], verts[6], verts[2]},
+				[][2]float32{uvRight[0], uvRight[2], uvRight[3]}, [3]float32{1, 0, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[1], verts[5], verts[6], verts[2]},
+				uvRight, [3]float32{1, 0, 0})
+		}
+
+		// Left edge (reuse box left texture)
+		uvLeft := addUVSet("left", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[4], verts[0], verts[3]},
+				[][2]float32{uvLeft[0], uvLeft[1], uvLeft[2]}, [3]float32{-1, 0, 0})
+			addTri(mesh, [][3]float32{verts[4], verts[3], verts[7]},
+				[][2]float32{uvLeft[0], uvLeft[2], uvLeft[3]}, [3]float32{-1, 0, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[4], verts[0], verts[3], verts[7]},
+				uvLeft, [3]float32{-1, 0, 0})
+		}
+	}
+
 	// Generate Box Geometry
 	// Front face
 	uvF := addUVSet("front", trapRatio, false, false, nil, 0)
@@ -670,127 +874,186 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 	addQuad(boxMesh, [][3]float32{boxVerts[4], boxVerts[5], boxVerts[1], boxVerts[0]},
 		uvB, [3]float32{0, -1, 0})
 
+	// ========================
 	// Gatefold geometry
-	if hasGatefold {
-		gfMesh := &MeshPart{Name: "Gatefold"}
+	// ========================
+	gfD := d * GatefoldDepthOffset
+
+	switch gatefoldMode {
+	case GatefoldSingleFront:
+		// Single full-width flap on front — node name: "GatefoldFront"
+		gfMesh := &MeshPart{Name: "GatefoldFront"}
 		parts = append(parts, gfMesh)
 
-		gfD := d * GatefoldDepthOffset
-
-		var gfVerts [][3]float32
-		if gatefoldOnBack {
-			gfZ := -d
-			gfOffset := -gfD
-			gfVerts = [][3]float32{
-				{float32(w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(-w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(-topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(w), float32(-h), float32(gfZ)},
-				{float32(-w), float32(-h), float32(gfZ)},
-				{float32(-topW), float32(h), float32(gfZ)},
-				{float32(topW), float32(h), float32(gfZ)},
-			}
-		} else {
-			gfZ := d
-			gfOffset := gfD
-			gfVerts = [][3]float32{
-				{float32(-w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(-topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(-w), float32(-h), float32(gfZ)},
-				{float32(w), float32(-h), float32(gfZ)},
-				{float32(topW), float32(h), float32(gfZ)},
-				{float32(-topW), float32(h), float32(gfZ)},
-			}
+		gfZ := d
+		gfOffset := gfD
+		gfVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
 		}
 
-		// Gatefold front
-		uvGf := addUVSet("gatefold_front", trapRatio, false, false, nil, 0)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[0], gfVerts[1], gfVerts[2]},
-				[][2]float32{uvGf[0], uvGf[1], uvGf[2]}, [3]float32{0, 0, 1})
-			addTri(gfMesh, [][3]float32{gfVerts[0], gfVerts[2], gfVerts[3]},
-				[][2]float32{uvGf[0], uvGf[2], uvGf[3]}, [3]float32{0, 0, 1})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[0], gfVerts[1], gfVerts[2], gfVerts[3]},
-				uvGf, [3]float32{0, 0, 1})
-		}
-
-		// Gatefold back
-		rotationAngle := 0
-		flipGatefoldBack := false
+		// Determine back face flip/rotation based on box type
+		flipBack := false
 		var flipVert *bool
+		backRotation := 0
 
-		if !gatefoldOnBack && (gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold")) {
-			flipGatefoldBack = true
+		if gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold") {
+			flipBack = true
 			f := false
 			flipVert = &f
 		} else if gameInfo.BoxType == models.FindBoxTypeIDByName("Big Box With Vertical Gatefold But Horizontal") {
-			rotationAngle = -90
+			backRotation = -90
 		} else {
-			flipGatefoldBack = isTrapezoid && !gatefoldOnBack
+			flipBack = isTrapezoid
 		}
 
-		uvGb := addUVSet("gatefold_back", trapRatio, false, flipGatefoldBack, flipVert, rotationAngle)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[5], gfVerts[4], gfVerts[7]},
-				[][2]float32{uvGb[0], uvGb[1], uvGb[2]}, [3]float32{0, 0, -1})
-			addTri(gfMesh, [][3]float32{gfVerts[5], gfVerts[7], gfVerts[6]},
-				[][2]float32{uvGb[0], uvGb[2], uvGb[3]}, [3]float32{0, 0, -1})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[5], gfVerts[4], gfVerts[7], gfVerts[6]},
-				uvGb, [3]float32{0, 0, -1})
+		addGatefoldPanel(gfMesh, gfVerts,
+			"gatefold_front_inner", "gatefold_front_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, flipBack, flipVert, backRotation)
+
+	case GatefoldSingleBack:
+		// Single full-width flap on back — node name: "GatefoldBack"
+		gfMesh := &MeshPart{Name: "GatefoldBack"}
+		parts = append(parts, gfMesh)
+
+		gfZ := -d
+		gfOffset := -gfD
+		gfVerts := [][3]float32{
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
 		}
 
-		// Gatefold top (reuse main box top texture)
-		uvGt := addUVSet("top", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[3], gfVerts[2], gfVerts[6]},
-				[][2]float32{uvGt[0], uvGt[1], uvGt[2]}, [3]float32{0, 1, 0})
-			addTri(gfMesh, [][3]float32{gfVerts[3], gfVerts[6], gfVerts[7]},
-				[][2]float32{uvGt[0], uvGt[2], uvGt[3]}, [3]float32{0, 1, 0})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[3], gfVerts[2], gfVerts[6], gfVerts[7]},
-				uvGt, [3]float32{0, 1, 0})
+		addGatefoldPanel(gfMesh, gfVerts,
+			"gatefold_back_inner", "gatefold_back_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
+
+	case GatefoldDoubleFront:
+		// Two half-width flaps on the front face, splitting at x=0
+		// Left flap: from -w to 0 (hinges on left edge at x=-w)
+		// Right flap: from 0 to w (hinges on right edge at x=w)
+		// Node names: "GatefoldFrontLeft", "GatefoldFrontRight"
+
+		gfZ := d
+		gfOffset := gfD
+
+		// Determine the back texture key — use gatefold_double_back if available,
+		// otherwise fall back to gatefold_double_inner
+		backTex := "gatefold_double_back"
+		if _, ok := atlas.Positions[backTex]; !ok {
+			backTex = "gatefold_double_inner"
 		}
 
-		// Gatefold bottom (reuse main box bottom texture)
-		uvGbot := addUVSet("bottom", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[1], gfVerts[5], gfVerts[4]},
-				[][2]float32{uvGbot[2], uvGbot[3], uvGbot[0]}, [3]float32{0, -1, 0})
-			addTri(gfMesh, [][3]float32{gfVerts[1], gfVerts[4], gfVerts[0]},
-				[][2]float32{uvGbot[2], uvGbot[0], uvGbot[1]}, [3]float32{0, -1, 0})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[1], gfVerts[5], gfVerts[4], gfVerts[0]},
-				uvGbot, [3]float32{0, -1, 0})
+		// --- Left flap ---
+		gfLeftMesh := &MeshPart{Name: "GatefoldFrontLeft"}
+		parts = append(parts, gfLeftMesh)
+
+		gfLeftVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},      // 0: bottom-left front
+			{float32(0), float32(-h), float32(gfZ + gfOffset)},       // 1: bottom-center front
+			{float32(0), float32(h), float32(gfZ + gfOffset)},        // 2: top-center front
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},    // 3: top-left front
+			{float32(-w), float32(-h), float32(gfZ)},                 // 4: bottom-left back
+			{float32(0), float32(-h), float32(gfZ)},                  // 5: bottom-center back
+			{float32(0), float32(h), float32(gfZ)},                   // 6: top-center back
+			{float32(-topW), float32(h), float32(gfZ)},               // 7: top-left back
 		}
 
-		// Gatefold right (reuse main box right texture)
-		uvGr := addUVSet("right", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[1], gfVerts[5], gfVerts[6]},
-				[][2]float32{uvGr[0], uvGr[1], uvGr[2]}, [3]float32{1, 0, 0})
-			addTri(gfMesh, [][3]float32{gfVerts[1], gfVerts[6], gfVerts[2]},
-				[][2]float32{uvGr[0], uvGr[2], uvGr[3]}, [3]float32{1, 0, 0})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[1], gfVerts[5], gfVerts[6], gfVerts[2]},
-				uvGr, [3]float32{1, 0, 0})
+		addGatefoldPanel(gfLeftMesh, gfLeftVerts,
+			"gatefold_front_left", backTex,
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
+
+		// --- Right flap ---
+		gfRightMesh := &MeshPart{Name: "GatefoldFrontRight"}
+		parts = append(parts, gfRightMesh)
+
+		gfRightVerts := [][3]float32{
+			{float32(0), float32(-h), float32(gfZ + gfOffset)},       // 0: bottom-center front
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},       // 1: bottom-right front
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},     // 2: top-right front
+			{float32(0), float32(h), float32(gfZ + gfOffset)},        // 3: top-center front
+			{float32(0), float32(-h), float32(gfZ)},                  // 4: bottom-center back
+			{float32(w), float32(-h), float32(gfZ)},                  // 5: bottom-right back
+			{float32(topW), float32(h), float32(gfZ)},                // 6: top-right back
+			{float32(0), float32(h), float32(gfZ)},                   // 7: top-center back
 		}
 
-		// Gatefold left (reuse main box left texture)
-		uvGl := addUVSet("left", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri(gfMesh, [][3]float32{gfVerts[4], gfVerts[0], gfVerts[3]},
-				[][2]float32{uvGl[0], uvGl[1], uvGl[2]}, [3]float32{-1, 0, 0})
-			addTri(gfMesh, [][3]float32{gfVerts[4], gfVerts[3], gfVerts[7]},
-				[][2]float32{uvGl[0], uvGl[2], uvGl[3]}, [3]float32{-1, 0, 0})
-		} else {
-			addQuad(gfMesh, [][3]float32{gfVerts[4], gfVerts[0], gfVerts[3], gfVerts[7]},
-				uvGl, [3]float32{-1, 0, 0})
+		addGatefoldPanel(gfRightMesh, gfRightVerts,
+			"gatefold_front_right", backTex,
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
+
+	case GatefoldFrontAndBack:
+		// Full-width flap on front — node name: "GatefoldFront"
+		gfFrontMesh := &MeshPart{Name: "GatefoldFront"}
+		parts = append(parts, gfFrontMesh)
+
+		gfZ := d
+		gfOffset := gfD
+		gfFrontVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
 		}
+
+		// Determine front flap back face flip/rotation based on box type
+		flipFrontBack := false
+		var flipFrontVert *bool
+		frontBackRotation := 0
+
+		if gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold") {
+			flipFrontBack = true
+			f := false
+			flipFrontVert = &f
+		} else {
+			flipFrontBack = isTrapezoid
+		}
+
+		addGatefoldPanel(gfFrontMesh, gfFrontVerts,
+			"gatefold_front_inner", "gatefold_front_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, flipFrontBack, flipFrontVert, frontBackRotation)
+
+		// Full-width flap on back — node name: "GatefoldBack"
+		gfBackMesh := &MeshPart{Name: "GatefoldBack"}
+		parts = append(parts, gfBackMesh)
+
+		gfBackZ := -d
+		gfBackOffset := -gfD
+		gfBackVerts := [][3]float32{
+			{float32(w), float32(-h), float32(gfBackZ + gfBackOffset)},
+			{float32(-w), float32(-h), float32(gfBackZ + gfBackOffset)},
+			{float32(-topW), float32(h), float32(gfBackZ + gfBackOffset)},
+			{float32(topW), float32(h), float32(gfBackZ + gfBackOffset)},
+			{float32(w), float32(-h), float32(gfBackZ)},
+			{float32(-w), float32(-h), float32(gfBackZ)},
+			{float32(-topW), float32(h), float32(gfBackZ)},
+			{float32(topW), float32(h), float32(gfBackZ)},
+		}
+
+		addGatefoldPanel(gfBackMesh, gfBackVerts,
+			"gatefold_back_inner", "gatefold_back_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
 	}
 
 	return parts
