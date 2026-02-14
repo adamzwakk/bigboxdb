@@ -47,9 +47,9 @@ type AtlasResult struct {
 // Refactored to allow N amount of pieces for Three.js animation targets
 type MeshPart struct {
 	Name      string
-	Positions []float32
-	Normals   []float32
-	UVs       []float32
+	Positions [][3]float32
+	Normals   [][3]float32
+	UVs       [][2]float32
 	Indices   []uint16
 }
 
@@ -189,10 +189,10 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 	doc.Asset.Generator = "BigBoxDB glTF Generator"
 	doc.ExtensionsUsed = append(doc.ExtensionsUsed, "KHR_texture_basisu")
 
-	var sceneNodes []uint32
+	var sceneNodes []int
 
 	// 1. Generate Buffers, BufferViews, Accessors, Meshes, and Nodes for each piece
-	for i, part := range parts {
+	for _, part := range parts {
 		if len(part.Positions) == 0 {
 			continue
 		}
@@ -209,7 +209,7 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 			Primitives: []*gltf.Primitive{
 				{
 					Indices: gltf.Index(indicesAccessor),
-					Attributes: map[string]uint32{
+					Attributes: gltf.PrimitiveAttributes{
 						gltf.POSITION:   posAccessor,
 						gltf.NORMAL:     normAccessor,
 						gltf.TEXCOORD_0: uvAccessor,
@@ -219,7 +219,7 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 			},
 		})
 
-		meshIndex := uint32(len(doc.Meshes) - 1)
+		meshIndex := len(doc.Meshes) - 1
 
 		// Create a Node that Three.js can target by name
 		doc.Nodes = append(doc.Nodes, &gltf.Node{
@@ -227,7 +227,7 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 			Mesh: gltf.Index(meshIndex),
 		})
 
-		nodeIndex := uint32(len(doc.Nodes) - 1)
+		nodeIndex := len(doc.Nodes) - 1
 		sceneNodes = append(sceneNodes, nodeIndex)
 	}
 
@@ -244,23 +244,23 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 		doc.Buffers = append(doc.Buffers, &gltf.Buffer{})
 	}
 
-	bufferIndex := uint32(0)
-	byteOffset := uint32(len(doc.Buffers[bufferIndex].Data))
+	bufferIndex := 0
+	byteOffset := len(doc.Buffers[bufferIndex].Data)
 
 	// Write texture to the buffer and ensure 4-byte alignment
 	doc.Buffers[bufferIndex].Data = append(doc.Buffers[bufferIndex].Data, textureData...)
 	for len(doc.Buffers[bufferIndex].Data)%4 != 0 {
 		doc.Buffers[bufferIndex].Data = append(doc.Buffers[bufferIndex].Data, 0)
 	}
-	doc.Buffers[bufferIndex].ByteLength = uint32(len(doc.Buffers[bufferIndex].Data))
+	doc.Buffers[bufferIndex].ByteLength = len(doc.Buffers[bufferIndex].Data)
 
 	// Create a BufferView pointing to the texture bytes
 	doc.BufferViews = append(doc.BufferViews, &gltf.BufferView{
 		Buffer:     bufferIndex,
 		ByteOffset: byteOffset,
-		ByteLength: uint32(len(textureData)),
+		ByteLength: len(textureData),
 	})
-	bvIndex := uint32(len(doc.BufferViews) - 1)
+	bvIndex := len(doc.BufferViews) - 1
 
 	// 3. Map the Material tree
 	doc.Images = append(doc.Images, &gltf.Image{
@@ -583,13 +583,13 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 
 	// Helper to add a quad specifically targeting a MeshPart
 	addQuad := func(mesh *MeshPart, verts [][3]float32, uvCoords [][2]float32, normal [3]float32) {
-		baseIdx := uint16(len(mesh.Positions) / 3)
+		baseIdx := uint16(len(mesh.Positions))
 		for _, v := range verts {
-			mesh.Positions = append(mesh.Positions, v[0], v[1], v[2])
-			mesh.Normals = append(mesh.Normals, normal[0], normal[1], normal[2])
+			mesh.Positions = append(mesh.Positions, v)
+			mesh.Normals = append(mesh.Normals, normal)
 		}
 		for _, uv := range uvCoords {
-			mesh.UVs = append(mesh.UVs, uv[0], uv[1])
+			mesh.UVs = append(mesh.UVs, uv)
 		}
 		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+1, baseIdx+2)
 		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+2, baseIdx+3)
@@ -597,13 +597,13 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 
 	// Helper to add a triangle specifically targeting a MeshPart
 	addTri := func(mesh *MeshPart, verts [][3]float32, uvCoords [][2]float32, normal [3]float32) {
-		baseIdx := uint16(len(mesh.Positions) / 3)
+		baseIdx := uint16(len(mesh.Positions))
 		for _, v := range verts {
-			mesh.Positions = append(mesh.Positions, v[0], v[1], v[2])
-			mesh.Normals = append(mesh.Normals, normal[0], normal[1], normal[2])
+			mesh.Positions = append(mesh.Positions, v)
+			mesh.Normals = append(mesh.Normals, normal)
 		}
 		for _, uv := range uvCoords {
-			mesh.UVs = append(mesh.UVs, uv[0], uv[1])
+			mesh.UVs = append(mesh.UVs, uv)
 		}
 		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+1, baseIdx+2)
 	}
