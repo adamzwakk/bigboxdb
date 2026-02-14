@@ -1,7 +1,6 @@
 import Header from '@/partials/Header'
 import '@/globals.css'
 import '@/main/main.scss'
-import SingleGame from '@/partials/SingleGame';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 
@@ -36,6 +35,7 @@ export default function Game() {
                         <div className="bg-black/50 p-5 mt-5">
                             <h4 className='font-bold'>Links:</h4>
                             <ul>
+                                <li><a href={"https://www.mobygames.com/game/"+game.mobygames_id}></a></li>
                                 {game.links && game.links.length > 0 && 
                                     game.links.map((l: any) => (
                                         <li key={l.id} className='inline'>
@@ -47,19 +47,22 @@ export default function Game() {
                         </div>
                     </div>
                 </div>
-                <div className='mt-5'>
-                    <h2 className='text-[24px] font-bold'>Box Variants</h2>
-                    <div className="flex justify-start">
-                        {game.variants && game.variants.length > 0 && (
-                            game.variants.map((v: any) => (
-                                <div key={v.id} className='variant w-[25%] h-50'>
-                                    <div>{v.name}</div>
-                                    <SingleGame ga={v} zd={0} showTitle={false} showFooter={false} />
-                                </div>
-                            ))
-                        )}
+                {game.variants && game.variants.length > 0 && <div className='mt-5'>
+                    <h2 className='text-[24px] font-bold my-5'>Editions ({game.variants.length})</h2>
+                    <div className="flex justify-start gap-10">
+                        {(game.variants.map((v: any) => (
+                            <a href={"/game/"+game.slug+"/"+v.id} key={v.id} className='variant w-[25%] bg-black/50 p-5'>
+                                <div>{v.name}</div>
+                                <img src={"/scans/"+game.slug+"/"+v.id+"/front.webp"} alt="" className='w-[100%]' />
+                                <ul>
+                                    <li>{v.box_type_name}</li>
+                                </ul>
+                                {/* <SingleGame ga={v} zd={0} showTitle={false} showFooter={false} /> */}
+                            </a>
+                        )))}
                     </div>
                 </div>
+                }
             </>
             }
         </div>

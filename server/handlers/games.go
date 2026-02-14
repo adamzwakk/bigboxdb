@@ -26,6 +26,7 @@ type GameResponse struct {
 type MiniVariantResponse struct {
 	ID			uint	`json:"id"`
 	Desc		string	`json:"name"`
+	BoxType		string	`json:"box_type_name"`
 	TexturePath string	`json:"textureFileName"`
 }
 
@@ -59,11 +60,13 @@ func getGames(options queryOptions) []GameResponse {
 	var games []models.Game
 
 	q := d.Model(&models.Game{}).Preload("Variants", func(db *gorm.DB) *gorm.DB {
-        return db.Select("id", "game_id", "description")
+        return db.Select("id", "game_id", "description","box_type_id")
     }).Preload("Links", func(db *gorm.DB) *gorm.DB {
         return db.Select("id", "game_id", "type_id", "link")
     }).Preload("Links.Type", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "SmallName")
+	}).Preload("Variants.BoxType", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "Name")
 	})
 
 	if options.WhereId > 0 {
@@ -98,6 +101,7 @@ func getGames(options queryOptions) []GameResponse {
 			miniVariants = append(miniVariants, MiniVariantResponse{
 				ID:	v.ID,
 				Desc: v.Description,
+				BoxType: v.BoxType.Name,
 				TexturePath: fmt.Sprintf("/scans/%s/%d/%s", g.Slug, v.ID, "box.glb"),
 			})
 		}
