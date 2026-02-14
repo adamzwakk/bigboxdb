@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes, useParams } from 'react-router'
 import { Outlet } from 'react-router';
 import Home from './main/Home';
 import ThreeDeeShelf from './3dshelf/3dshelf';
@@ -27,6 +27,11 @@ function MainLayout() {
   );
 }
 
+function VariantWrapper() {
+  const { gameSlug, variantId } = useParams();
+  return <Variant key={`${gameSlug}-${variantId}`} />;
+}
+
 function App() {
 
   return (
@@ -36,7 +41,7 @@ function App() {
                 <Route index element={<Home />} />
                 <Route path="/faq" element={<Faq />} />
                 <Route path="/game/:gameSlug" element={<Game />} />
-                <Route path="/game/:gameSlug/:variantId" element={<Variant />} />
+                <Route path="/game/:gameSlug/:variantId" element={<VariantWrapper />} />
             </Route>
             <Route path="/shelves">
                 <Route index element={<ThreeDeeShelf />} />

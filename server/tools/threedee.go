@@ -1,20 +1,19 @@
 package tools
 
 import (
-	"os"
 	"fmt"
 	"image"
-	"path/filepath"
-	"strings"
-	"sort"
+	"os"
 	"os/exec"
-	"bytes"
-	"encoding/binary"
-	"encoding/json"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/sunshineplan/imgconv"
 	"github.com/gosimple/slug"
+	"github.com/qmuntal/gltf"
+	"github.com/qmuntal/gltf/modeler"
+	"github.com/sunshineplan/imgconv"
 
 	"github.com/adamzwakk/bigboxdb-server/models"
 )
@@ -27,12 +26,23 @@ const (
 	OutputFormat        = "glb"
 )
 
+// GatefoldMode describes how gatefolds are arranged on a box
+type GatefoldMode int
+
+const (
+	GatefoldNone         GatefoldMode = iota
+	GatefoldSingleFront               // One full-width flap on front
+	GatefoldSingleBack                // One full-width flap on back
+	GatefoldDoubleFront               // Two half-width flaps on front (book/double-door)
+	GatefoldFrontAndBack              // One full-width flap on front AND one on back
+)
+
 type GameInfo struct {
-	Title		string	 `json:"title"`
-	Width       float32  `json:"width"`
-	Height      float32  `json:"height"`
-	Depth       float32  `json:"depth"`
-	BoxType     uint      `json:"box_type"`
+	Title   string  `json:"title"`
+	Width   float32 `json:"width"`
+	Height  float32 `json:"height"`
+	Depth   float32 `json:"depth"`
+	BoxType uint    `json:"box_type"`
 }
 
 // AtlasResult holds texture atlas packing results
@@ -44,22 +54,14 @@ type AtlasResult struct {
 	OriginalDimensions image.Point
 }
 
-// GLTFData holds glTF structure and binary data
-type GLTFData struct {
-	JSON       map[string]interface{}
-	BinaryData *BinaryData
-}
-
-// BinaryData holds all binary geometry data
-type BinaryData struct {
-	Positions         []float32
-	Normals           []float32
-	UVs               []float32
-	Indices           []uint16
-	GatefoldPositions []float32
-	GatefoldNormals   []float32
-	GatefoldUVs       []float32
-	GatefoldIndices   []uint16
+// MeshPart holds the geometry data for a single distinct object (e.g. "Box", "GatefoldFront")
+// Each part becomes a separately named node in the glTF so Three.js can target it for animation
+type MeshPart struct {
+	Name      string
+	Positions [][3]float32
+	Normals   [][3]float32
+	UVs       [][2]float32
+	Indices   []uint16
 }
 
 func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string, lowQuality bool) error {
@@ -84,24 +86,37 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	boxType := gameInfo.BoxType
 	var topWidth *float32
 	if boxType == models.FindBoxTypeIDByName("Eidos Trapezoid") {
-		var tw float32 = 5.75 
+		var tw float32 = 5.75
 		topWidth = &tw
 	}
-	gatefoldOnBack := boxType == models.FindBoxTypeIDByName("Big Box With Back Gatefold")
 
-	// Sort texture paths
+	// Determine gatefold mode from box type
+	gatefoldMode := determineGatefoldMode(boxType)
+
+	// Sort texture paths — detect all gatefold texture variants
 	boxSortedPaths := make([]string, 6)
-	var gatefoldRightPath, gatefoldLeftPath string
+	gatefoldPaths := make(map[string]string) // key: "left", "right", "front_left", "front_right", "back"
 	boxSideNames := []string{"front", "back", "top", "bottom", "right", "left"}
 
 	for _, path := range texturePaths {
 		filenameLower := strings.ToLower(filepath.Base(path))
 
-		if strings.Contains(filenameLower, "gatefold_right") {
-			gatefoldRightPath = path
-		} else if strings.Contains(filenameLower, "gatefold_left") {
-			gatefoldLeftPath = path
-		} else {
+		switch {
+		case strings.Contains(filenameLower, "gatefold_front_left"):
+			gatefoldPaths["front_left"] = path
+		case strings.Contains(filenameLower, "gatefold_front_right"):
+			gatefoldPaths["front_right"] = path
+		case strings.Contains(filenameLower, "gatefold_back_left"):
+			gatefoldPaths["back_left"] = path
+		case strings.Contains(filenameLower, "gatefold_back_right"):
+			gatefoldPaths["back_right"] = path
+		case strings.Contains(filenameLower, "gatefold_back"):
+			gatefoldPaths["back"] = path
+		case strings.Contains(filenameLower, "gatefold_right"):
+			gatefoldPaths["right"] = path
+		case strings.Contains(filenameLower, "gatefold_left"):
+			gatefoldPaths["left"] = path
+		default:
 			for i, side := range boxSideNames {
 				if strings.Contains(filenameLower, side) && boxSortedPaths[i] == "" {
 					boxSortedPaths[i] = path
@@ -118,39 +133,124 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		}
 	}
 
-	hasGatefold := gatefoldRightPath != "" && gatefoldLeftPath != ""
+	// Determine if we actually have gatefold textures for the requested mode
+	hasGatefold := false
+	switch gatefoldMode {
+	case GatefoldSingleFront:
+		// Need legacy left+right, or front_left+front_right
+		hasGatefold = (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "")
+	case GatefoldSingleBack:
+		hasGatefold = (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["back"] != "")
+	case GatefoldDoubleFront:
+		hasGatefold = gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != ""
+	case GatefoldFrontAndBack:
+		// Need textures for both front and back flaps
+		hasFront := (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
+			(gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "")
+		hasBack := gatefoldPaths["back_left"] != "" && gatefoldPaths["back_right"] != ""
+		hasGatefold = hasFront && hasBack
+	}
+
+	if !hasGatefold {
+		gatefoldMode = GatefoldNone
+	}
 
 	// Pack textures into atlas
 	imagesToPack := make(map[string]image.Image)
-	
+
 	for i, path := range boxSortedPaths {
 		img := loadAndResizeImage(path, lowQuality)
 		imagesToPack[boxSideNames[i]] = img
 	}
 
 	if hasGatefold {
-		// Load gatefold images
-		gatefoldRightImg := loadAndResizeImage(gatefoldRightPath, lowQuality)
-		gatefoldLeftImg := loadAndResizeImage(gatefoldLeftPath, lowQuality)
-		
-		// Determine which base face the gatefold replaces
-		baseIndex := 0 // front
-		if gatefoldOnBack {
-			baseIndex = 1 // back
-		}
-		baseFaceName := boxSideNames[baseIndex]
-		
-		// Store the base face as gatefold_front
-		baseFaceImg := imagesToPack[baseFaceName]
-		imagesToPack["gatefold_front"] = baseFaceImg
-		
-		// Replace the base face with gatefold_right, store gatefold_left as gatefold_back
-		if gatefoldOnBack {
-			imagesToPack[baseFaceName] = gatefoldLeftImg
-			imagesToPack["gatefold_back"] = gatefoldRightImg
-		} else {
-			imagesToPack[baseFaceName] = gatefoldRightImg
-			imagesToPack["gatefold_back"] = gatefoldLeftImg
+		switch gatefoldMode {
+		case GatefoldSingleFront:
+			// Resolve texture paths — prefer new naming, fall back to legacy
+			rightPath := gatefoldPaths["front_right"]
+			if rightPath == "" {
+				rightPath = gatefoldPaths["right"]
+			}
+			leftPath := gatefoldPaths["front_left"]
+			if leftPath == "" {
+				leftPath = gatefoldPaths["left"]
+			}
+
+			gatefoldRightImg := loadAndResizeImage(rightPath, lowQuality)
+			gatefoldLeftImg := loadAndResizeImage(leftPath, lowQuality)
+
+			// The original front face becomes the inside of the gatefold
+			baseFaceImg := imagesToPack["front"]
+			imagesToPack["gatefold_front_inner"] = baseFaceImg
+
+			// The outer face shows gatefold_right, the back shows gatefold_left
+			imagesToPack["front"] = gatefoldRightImg
+			imagesToPack["gatefold_front_back"] = gatefoldLeftImg
+
+		case GatefoldSingleBack:
+			rightPath := gatefoldPaths["right"]
+			leftPath := gatefoldPaths["left"]
+
+			gatefoldRightImg := loadAndResizeImage(rightPath, lowQuality)
+			gatefoldLeftImg := loadAndResizeImage(leftPath, lowQuality)
+
+			// The original back face becomes the inside of the gatefold
+			baseFaceImg := imagesToPack["back"]
+			imagesToPack["gatefold_back_inner"] = baseFaceImg
+
+			// gatefold_left replaces the back face, gatefold_right is the outer back
+			imagesToPack["back"] = gatefoldLeftImg
+			imagesToPack["gatefold_back_back"] = gatefoldRightImg
+
+		case GatefoldDoubleFront:
+			frontLeftImg := loadAndResizeImage(gatefoldPaths["front_left"], lowQuality)
+			frontRightImg := loadAndResizeImage(gatefoldPaths["front_right"], lowQuality)
+
+			// The original front face becomes the inside (visible when doors open)
+			baseFaceImg := imagesToPack["front"]
+			imagesToPack["gatefold_double_inner"] = baseFaceImg
+
+			// Each flap's outer face
+			imagesToPack["gatefold_front_left"] = frontLeftImg
+			imagesToPack["gatefold_front_right"] = frontRightImg
+
+			// Optional: if there's a gatefold_back texture, use it for the back of the flaps
+			if gatefoldPaths["back"] != "" {
+				gatefoldBackImg := loadAndResizeImage(gatefoldPaths["back"], lowQuality)
+				imagesToPack["gatefold_double_back"] = gatefoldBackImg
+			}
+
+		case GatefoldFrontAndBack:
+			// Front flap — prefer new naming, fall back to legacy
+			frontRightPath := gatefoldPaths["front_right"]
+			if frontRightPath == "" {
+				frontRightPath = gatefoldPaths["right"]
+			}
+			frontLeftPath := gatefoldPaths["front_left"]
+			if frontLeftPath == "" {
+				frontLeftPath = gatefoldPaths["left"]
+			}
+
+			frontRightImg := loadAndResizeImage(frontRightPath, lowQuality)
+			frontLeftImg := loadAndResizeImage(frontLeftPath, lowQuality)
+
+			// Original front face → inside of front gatefold
+			frontBaseImg := imagesToPack["front"]
+			imagesToPack["gatefold_front_inner"] = frontBaseImg
+			imagesToPack["front"] = frontRightImg
+			imagesToPack["gatefold_front_back"] = frontLeftImg
+
+			// Back flap
+			backRightImg := loadAndResizeImage(gatefoldPaths["back_right"], lowQuality)
+			backLeftImg := loadAndResizeImage(gatefoldPaths["back_left"], lowQuality)
+
+			// Original back face → inside of back gatefold
+			backBaseImg := imagesToPack["back"]
+			imagesToPack["gatefold_back_inner"] = backBaseImg
+			imagesToPack["back"] = backRightImg
+			imagesToPack["gatefold_back_back"] = backLeftImg
 		}
 	}
 
@@ -167,11 +267,19 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		return fmt.Errorf("Failed to save KTX2 texture atlas")
 	}
 
-	// Generate glTF geometry
-	gltfData := generateGeometry(gameInfo, atlasResult, hasGatefold, gatefoldOnBack, topWidth)
+	// Generate array of distinct MeshParts
+	meshParts := generateGeometry(gameInfo, atlasResult, gatefoldMode, topWidth)
 
-	// Save GLB
-	saveGLB(gltfData, gltfFilename, atlasFilename, atlasFile)
+	// Generate glTF structured document
+	doc, err := generateGLTFDocument(gameInfo, meshParts, atlasFilename)
+	if err != nil {
+		return fmt.Errorf("failed to build gltf document: %w", err)
+	}
+
+	// Save GLB using qmuntal/gltf
+	if err := gltf.SaveBinary(doc, gltfFilename); err != nil {
+		return fmt.Errorf("failed to save GLB: %w", err)
+	}
 
 	if os.Getenv("APP_ENV") != "production" {
 		fileInfo, _ := os.Stat(gltfFilename)
@@ -182,6 +290,127 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 	}
 
 	return nil
+}
+
+// determineGatefoldMode maps box type names to gatefold configurations
+func determineGatefoldMode(boxType uint) GatefoldMode {
+	switch boxType {
+	case models.FindBoxTypeIDByName("Big Box With Back Gatefold"):
+		return GatefoldSingleBack
+	case models.FindBoxTypeIDByName("Big Box With Double Gatefold"):
+		return GatefoldDoubleFront
+	case models.FindBoxTypeIDByName("Big Box With Front And Back Gatefold"):
+		return GatefoldFrontAndBack
+	default:
+		// All other gatefold-capable types use single front
+		// The caller will check if gatefold textures actually exist
+		return GatefoldSingleFront
+	}
+}
+
+// generateGLTFDocument dynamically loops through N amount of MeshParts
+func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath string) (*gltf.Document, error) {
+	doc := gltf.NewDocument()
+	doc.Asset.Generator = "BigBoxDB glTF Generator"
+	doc.ExtensionsUsed = append(doc.ExtensionsUsed, "KHR_texture_basisu")
+
+	var sceneNodes []int
+
+	// 1. Generate Buffers, BufferViews, Accessors, Meshes, and Nodes for each piece
+	for _, part := range parts {
+		if len(part.Positions) == 0 {
+			continue
+		}
+
+		// Let modeler calculate byte offsets and sizes automatically
+		posAccessor := modeler.WritePosition(doc, part.Positions)
+		normAccessor := modeler.WriteNormal(doc, part.Normals)
+		uvAccessor := modeler.WriteTextureCoord(doc, part.UVs)
+		indicesAccessor := modeler.WriteIndices(doc, part.Indices)
+
+		// Create the mesh for this specific part
+		doc.Meshes = append(doc.Meshes, &gltf.Mesh{
+			Name: part.Name,
+			Primitives: []*gltf.Primitive{
+				{
+					Indices: gltf.Index(indicesAccessor),
+					Attributes: gltf.PrimitiveAttributes{
+						gltf.POSITION:   posAccessor,
+						gltf.NORMAL:     normAccessor,
+						gltf.TEXCOORD_0: uvAccessor,
+					},
+					Material: gltf.Index(0), // Uses the shared atlas material
+				},
+			},
+		})
+
+		meshIndex := len(doc.Meshes) - 1
+
+		// Create a Node that Three.js can target by name
+		doc.Nodes = append(doc.Nodes, &gltf.Node{
+			Name: part.Name,
+			Mesh: gltf.Index(meshIndex),
+		})
+
+		nodeIndex := len(doc.Nodes) - 1
+		sceneNodes = append(sceneNodes, nodeIndex)
+	}
+
+	// gltf.NewDocument() already creates one empty scene at index 0, so update it
+	doc.Scenes[0].Nodes = sceneNodes
+
+	// 2. Embed the KTX2 Texture Data
+	textureData, err := os.ReadFile(texturePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read texture for embedding: %w", err)
+	}
+
+	if len(doc.Buffers) == 0 {
+		doc.Buffers = append(doc.Buffers, &gltf.Buffer{})
+	}
+
+	bufferIndex := 0
+	byteOffset := len(doc.Buffers[bufferIndex].Data)
+
+	// Write texture to the buffer and ensure 4-byte alignment
+	doc.Buffers[bufferIndex].Data = append(doc.Buffers[bufferIndex].Data, textureData...)
+	for len(doc.Buffers[bufferIndex].Data)%4 != 0 {
+		doc.Buffers[bufferIndex].Data = append(doc.Buffers[bufferIndex].Data, 0)
+	}
+	doc.Buffers[bufferIndex].ByteLength = len(doc.Buffers[bufferIndex].Data)
+
+	// Create a BufferView pointing to the texture bytes
+	doc.BufferViews = append(doc.BufferViews, &gltf.BufferView{
+		Buffer:     bufferIndex,
+		ByteOffset: byteOffset,
+		ByteLength: len(textureData),
+	})
+	bvIndex := len(doc.BufferViews) - 1
+
+	// 3. Map the Material tree
+	doc.Images = append(doc.Images, &gltf.Image{
+		MimeType:   "image/ktx2",
+		BufferView: gltf.Index(bvIndex),
+	})
+
+	doc.Textures = append(doc.Textures, &gltf.Texture{
+		Extensions: gltf.Extensions{
+			"KHR_texture_basisu": map[string]interface{}{
+				"source": 0,
+			},
+		},
+	})
+
+	doc.Materials = append(doc.Materials, &gltf.Material{
+		Name: slug.Make(gameInfo.Title) + "-material",
+		PBRMetallicRoughness: &gltf.PBRMetallicRoughness{
+			BaseColorTexture: &gltf.TextureInfo{Index: 0},
+			MetallicFactor:   gltf.Float(0.0),
+			RoughnessFactor:  gltf.Float(1.0),
+		},
+	})
+
+	return doc, nil
 }
 
 func createBlackPlaceholder(outputDir string, sideName string, gameInfo *GameInfo, upsizeRatio int, qualitySuffix string) string {
@@ -242,7 +471,7 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 	})
 
 	positions := make(map[string]image.Point)
-	sizes := make(map[string]image.Point)  // ADDED: Initialize sizes map
+	sizes := make(map[string]image.Point)
 	atlasWidth := 0
 	atlasHeight := 0
 	currentX := 0
@@ -266,12 +495,12 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 		}
 
 		positions[entry.name] = image.Pt(currentX, currentY)
-		sizes[entry.name] = image.Pt(imgWidth, imgHeight)  // ADDED: Store texture size
-		
+		sizes[entry.name] = image.Pt(imgWidth, imgHeight)
+
 		if os.Getenv("APP_ENV") != "production" {
 			fmt.Printf("  '%s': pos=(%d,%d) size=(%d,%d)\n", entry.name, currentX, currentY, imgWidth, imgHeight)
 		}
-		
+
 		currentX += imgWidth
 		rowHeight = max(rowHeight, imgHeight)
 		atlasWidth = max(atlasWidth, currentX)
@@ -284,7 +513,7 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 	// Pad to multiples of 4
 	atlasWidth = ((atlasWidth + 3) / 4) * 4
 	atlasHeight = ((atlasHeight + 3) / 4) * 4
-	
+
 	if os.Getenv("APP_ENV") != "production" {
 		fmt.Printf("Atlas dimensions: %dx%d (original: %dx%d)\n", atlasWidth, atlasHeight, originalWidth, originalHeight)
 	}
@@ -298,7 +527,7 @@ func packTextures(images map[string]image.Image) *AtlasResult {
 	return &AtlasResult{
 		Atlas:              atlas,
 		Positions:          positions,
-		Sizes:              sizes,  // ADDED: Include sizes in result
+		Sizes:              sizes,
 		Dimensions:         image.Pt(atlasWidth, atlasHeight),
 		OriginalDimensions: image.Pt(originalWidth, originalHeight),
 	}
@@ -346,8 +575,7 @@ func saveAsKTX2(img image.Image, outputPath, compression string, quality int) bo
 	return true
 }
 
-
-func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatefoldOnBack bool, topWidth *float32) *GLTFData {
+func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode GatefoldMode, topWidth *float32) []*MeshPart {
 	w := gameInfo.Width / 2.0
 	h := gameInfo.Height / 2.0
 	d := gameInfo.Depth / 2.0
@@ -367,46 +595,46 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 
 	// Box vertices (8 vertices for the box)
 	boxVerts := [][3]float32{
-		{float32(-w), float32(-h), float32(d)},   // 0
-		{float32(w), float32(-h), float32(d)},    // 1
-		{float32(topW), float32(h), float32(d)},  // 2
-		{float32(-topW), float32(h), float32(d)}, // 3
-		{float32(-w), float32(-h), float32(-d)},  // 4
-		{float32(w), float32(-h), float32(-d)},   // 5
-		{float32(topW), float32(h), float32(-d)}, // 6
+		{float32(-w), float32(-h), float32(d)},    // 0
+		{float32(w), float32(-h), float32(d)},     // 1
+		{float32(topW), float32(h), float32(d)},   // 2
+		{float32(-topW), float32(h), float32(d)},  // 3
+		{float32(-w), float32(-h), float32(-d)},   // 4
+		{float32(w), float32(-h), float32(-d)},    // 5
+		{float32(topW), float32(h), float32(-d)},  // 6
 		{float32(-topW), float32(h), float32(-d)}, // 7
 	}
 
-	binaryData := &BinaryData{}
-	
-	//boxSideNames := []string{"front", "back", "top", "bottom", "right", "left"}
-	
+	// Dynamic slice of mesh parts
+	parts := []*MeshPart{}
+
+	boxMesh := &MeshPart{Name: "Box"}
+	parts = append(parts, boxMesh)
+
 	// Helper function to add UV coordinates
 	addUVSet := func(name string, trapezoidRatio *float32, invertTrapezoid, flipHorizontal bool, flipVerticalOverride *bool, rotation int) [][2]float32 {
 		pos, ok := atlas.Positions[name]
 		if !ok {
-			// Return default UVs if texture not found
 			fmt.Printf("Warning: Texture '%s' not found in atlas, using default UVs\n", name)
 			return [][2]float32{{0, 0}, {1, 0}, {1, 1}, {0, 1}}
 		}
-		
+
 		size, ok := atlas.Sizes[name]
 		if !ok {
-			// Fallback size if not found
 			fmt.Printf("Warning: Size for texture '%s' not found, using fallback\n", name)
 			size = image.Pt(100, 100)
 		}
-		
+
 		atlasW := float32(atlas.Dimensions.X)
 		atlasH := float32(atlas.Dimensions.Y)
-		
+
 		// Add 0.5 pixel inset to prevent texture bleeding
 		inset := float32(0.5)
 		u0Orig := (float32(pos.X) + inset) / atlasW
 		u1Orig := (float32(pos.X+size.X) - inset) / atlasW
 		v0Orig := (float32(pos.Y) + inset) / atlasH
 		v1Orig := (float32(pos.Y+size.Y) - inset) / atlasH
-				
+
 		var v0, v1 float32
 		if flipVerticalOverride != nil {
 			if *flipVerticalOverride {
@@ -417,12 +645,12 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 		} else {
 			v0, v1 = v1Orig, v0Orig
 		}
-		
+
 		u0, u1 := u0Orig, u1Orig
 		if flipHorizontal {
 			u0, u1 = u1Orig, u0Orig
 		}
-		
+
 		// Handle rotation
 		if rotation != 0 {
 			corners := [][2]float32{{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}}
@@ -435,13 +663,13 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 				return [][2]float32{corners[2], corners[3], corners[0], corners[1]}
 			}
 		}
-		
+
 		// Handle trapezoid UVs
 		if trapezoidRatio != nil {
 			uCenter := (u0Orig + u1Orig) / 2
-			uHalfWidthBottom := float32(abs(float32(u1Orig - u0Orig))) / 2
+			uHalfWidthBottom := float32(abs(float32(u1Orig-u0Orig))) / 2
 			uHalfWidthTop := uHalfWidthBottom * float32(*trapezoidRatio)
-			
+
 			if invertTrapezoid {
 				if flipHorizontal {
 					return [][2]float32{
@@ -458,7 +686,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 					{uCenter - uHalfWidthBottom, v1},
 				}
 			}
-			
+
 			if flipHorizontal {
 				return [][2]float32{
 					{uCenter + uHalfWidthBottom, v0},
@@ -474,673 +702,362 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold, gatef
 				{uCenter - uHalfWidthTop, v1},
 			}
 		}
-		
+
 		return [][2]float32{{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}}
 	}
-	
-	// Helper to add a quad
-	addQuad := func(verts [][3]float32, uvCoords [][2]float32, normal [3]float32, isGatefold bool) {
-		if isGatefold {
-			baseIdx := uint16(len(binaryData.GatefoldPositions) / 3)
-			for _, v := range verts {
-				binaryData.GatefoldPositions = append(binaryData.GatefoldPositions, v[0], v[1], v[2])
-				binaryData.GatefoldNormals = append(binaryData.GatefoldNormals, normal[0], normal[1], normal[2])
-			}
-			for _, uv := range uvCoords {
-				binaryData.GatefoldUVs = append(binaryData.GatefoldUVs, uv[0], uv[1])
-			}
-			binaryData.GatefoldIndices = append(binaryData.GatefoldIndices, baseIdx, baseIdx+1, baseIdx+2)
-			binaryData.GatefoldIndices = append(binaryData.GatefoldIndices, baseIdx, baseIdx+2, baseIdx+3)
+
+	// Helper to add a quad specifically targeting a MeshPart
+	addQuad := func(mesh *MeshPart, verts [][3]float32, uvCoords [][2]float32, normal [3]float32) {
+		baseIdx := uint16(len(mesh.Positions))
+		for _, v := range verts {
+			mesh.Positions = append(mesh.Positions, v)
+			mesh.Normals = append(mesh.Normals, normal)
+		}
+		for _, uv := range uvCoords {
+			mesh.UVs = append(mesh.UVs, uv)
+		}
+		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+1, baseIdx+2)
+		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+2, baseIdx+3)
+	}
+
+	// Helper to add a triangle specifically targeting a MeshPart
+	addTri := func(mesh *MeshPart, verts [][3]float32, uvCoords [][2]float32, normal [3]float32) {
+		baseIdx := uint16(len(mesh.Positions))
+		for _, v := range verts {
+			mesh.Positions = append(mesh.Positions, v)
+			mesh.Normals = append(mesh.Normals, normal)
+		}
+		for _, uv := range uvCoords {
+			mesh.UVs = append(mesh.UVs, uv)
+		}
+		mesh.Indices = append(mesh.Indices, baseIdx, baseIdx+1, baseIdx+2)
+	}
+
+	// addGatefoldPanel generates a full 6-face panel (front, back, top, bottom, left, right)
+	// for a gatefold flap. frontTex/backTex are the atlas keys for the unique faces;
+	// edges reuse the main box textures.
+	addGatefoldPanel := func(mesh *MeshPart, verts [][3]float32, frontTex, backTex string,
+		frontNormal, backNormal [3]float32, trapRatio *float32,
+		flipBack bool, flipVert *bool, backRotation int) {
+
+		// Front face (verts 0-3)
+		uvFront := addUVSet(frontTex, trapRatio, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[0], verts[1], verts[2]},
+				[][2]float32{uvFront[0], uvFront[1], uvFront[2]}, frontNormal)
+			addTri(mesh, [][3]float32{verts[0], verts[2], verts[3]},
+				[][2]float32{uvFront[0], uvFront[2], uvFront[3]}, frontNormal)
 		} else {
-			baseIdx := uint16(len(binaryData.Positions) / 3)
-			for _, v := range verts {
-				binaryData.Positions = append(binaryData.Positions, v[0], v[1], v[2])
-				binaryData.Normals = append(binaryData.Normals, normal[0], normal[1], normal[2])
-			}
-			for _, uv := range uvCoords {
-				binaryData.UVs = append(binaryData.UVs, uv[0], uv[1])
-			}
-			binaryData.Indices = append(binaryData.Indices, baseIdx, baseIdx+1, baseIdx+2)
-			binaryData.Indices = append(binaryData.Indices, baseIdx, baseIdx+2, baseIdx+3)
+			addQuad(mesh, [][3]float32{verts[0], verts[1], verts[2], verts[3]},
+				uvFront, frontNormal)
+		}
+
+		// Back face (verts 4-7)
+		uvBack := addUVSet(backTex, trapRatio, false, flipBack, flipVert, backRotation)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[5], verts[4], verts[7]},
+				[][2]float32{uvBack[0], uvBack[1], uvBack[2]}, backNormal)
+			addTri(mesh, [][3]float32{verts[5], verts[7], verts[6]},
+				[][2]float32{uvBack[0], uvBack[2], uvBack[3]}, backNormal)
+		} else {
+			addQuad(mesh, [][3]float32{verts[5], verts[4], verts[7], verts[6]},
+				uvBack, backNormal)
+		}
+
+		// Top face (reuse box top texture)
+		uvTop := addUVSet("top", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[3], verts[2], verts[6]},
+				[][2]float32{uvTop[0], uvTop[1], uvTop[2]}, [3]float32{0, 1, 0})
+			addTri(mesh, [][3]float32{verts[3], verts[6], verts[7]},
+				[][2]float32{uvTop[0], uvTop[2], uvTop[3]}, [3]float32{0, 1, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[3], verts[2], verts[6], verts[7]},
+				uvTop, [3]float32{0, 1, 0})
+		}
+
+		// Bottom face (reuse box bottom texture)
+		uvBot := addUVSet("bottom", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[1], verts[5], verts[4]},
+				[][2]float32{uvBot[2], uvBot[3], uvBot[0]}, [3]float32{0, -1, 0})
+			addTri(mesh, [][3]float32{verts[1], verts[4], verts[0]},
+				[][2]float32{uvBot[2], uvBot[0], uvBot[1]}, [3]float32{0, -1, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[1], verts[5], verts[4], verts[0]},
+				uvBot, [3]float32{0, -1, 0})
+		}
+
+		// Right edge (reuse box right texture)
+		uvRight := addUVSet("right", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[1], verts[5], verts[6]},
+				[][2]float32{uvRight[0], uvRight[1], uvRight[2]}, [3]float32{1, 0, 0})
+			addTri(mesh, [][3]float32{verts[1], verts[6], verts[2]},
+				[][2]float32{uvRight[0], uvRight[2], uvRight[3]}, [3]float32{1, 0, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[1], verts[5], verts[6], verts[2]},
+				uvRight, [3]float32{1, 0, 0})
+		}
+
+		// Left edge (reuse box left texture)
+		uvLeft := addUVSet("left", nil, false, false, nil, 0)
+		if isTrapezoid {
+			addTri(mesh, [][3]float32{verts[4], verts[0], verts[3]},
+				[][2]float32{uvLeft[0], uvLeft[1], uvLeft[2]}, [3]float32{-1, 0, 0})
+			addTri(mesh, [][3]float32{verts[4], verts[3], verts[7]},
+				[][2]float32{uvLeft[0], uvLeft[2], uvLeft[3]}, [3]float32{-1, 0, 0})
+		} else {
+			addQuad(mesh, [][3]float32{verts[4], verts[0], verts[3], verts[7]},
+				uvLeft, [3]float32{-1, 0, 0})
 		}
 	}
-	
-	// Helper to add a triangle
-	addTri := func(verts [][3]float32, uvCoords [][2]float32, normal [3]float32, isGatefold bool) {
-		if isGatefold {
-			baseIdx := uint16(len(binaryData.GatefoldPositions) / 3)
-			for _, v := range verts {
-				binaryData.GatefoldPositions = append(binaryData.GatefoldPositions, v[0], v[1], v[2])
-				binaryData.GatefoldNormals = append(binaryData.GatefoldNormals, normal[0], normal[1], normal[2])
-			}
-			for _, uv := range uvCoords {
-				binaryData.GatefoldUVs = append(binaryData.GatefoldUVs, uv[0], uv[1])
-			}
-			binaryData.GatefoldIndices = append(binaryData.GatefoldIndices, baseIdx, baseIdx+1, baseIdx+2)
-		} else {
-			baseIdx := uint16(len(binaryData.Positions) / 3)
-			for _, v := range verts {
-				binaryData.Positions = append(binaryData.Positions, v[0], v[1], v[2])
-				binaryData.Normals = append(binaryData.Normals, normal[0], normal[1], normal[2])
-			}
-			for _, uv := range uvCoords {
-				binaryData.UVs = append(binaryData.UVs, uv[0], uv[1])
-			}
-			binaryData.Indices = append(binaryData.Indices, baseIdx, baseIdx+1, baseIdx+2)
-		}
-	}
-	
-	// Generate box geometry
-	
+
+	// Generate Box Geometry
 	// Front face
 	uvF := addUVSet("front", trapRatio, false, false, nil, 0)
 	if gameInfo.BoxType == models.FindBoxTypeIDByName("Big Box With Vertical Gatefold But Horizontal") {
 		uvF = addUVSet("front", trapRatio, false, false, nil, 90)
 	}
 	if isTrapezoid {
-		addTri([][3]float32{boxVerts[0], boxVerts[1], boxVerts[2]}, 
-			[][2]float32{uvF[0], uvF[1], uvF[2]}, [3]float32{0, 0, 1}, false)
-		addTri([][3]float32{boxVerts[0], boxVerts[2], boxVerts[3]}, 
-			[][2]float32{uvF[0], uvF[2], uvF[3]}, [3]float32{0, 0, 1}, false)
+		addTri(boxMesh, [][3]float32{boxVerts[0], boxVerts[1], boxVerts[2]},
+			[][2]float32{uvF[0], uvF[1], uvF[2]}, [3]float32{0, 0, 1})
+		addTri(boxMesh, [][3]float32{boxVerts[0], boxVerts[2], boxVerts[3]},
+			[][2]float32{uvF[0], uvF[2], uvF[3]}, [3]float32{0, 0, 1})
 	} else {
-		addQuad([][3]float32{boxVerts[0], boxVerts[1], boxVerts[2], boxVerts[3]}, 
-			uvF, [3]float32{0, 0, 1}, false)
+		addQuad(boxMesh, [][3]float32{boxVerts[0], boxVerts[1], boxVerts[2], boxVerts[3]},
+			uvF, [3]float32{0, 0, 1})
 	}
-	
+
 	// Back face
 	uvBk := addUVSet("back", trapRatio, false, false, nil, 0)
 	if isTrapezoid {
-		addTri([][3]float32{boxVerts[5], boxVerts[4], boxVerts[7]}, 
-			[][2]float32{uvBk[0], uvBk[1], uvBk[2]}, [3]float32{0, 0, -1}, false)
-		addTri([][3]float32{boxVerts[5], boxVerts[7], boxVerts[6]}, 
-			[][2]float32{uvBk[0], uvBk[2], uvBk[3]}, [3]float32{0, 0, -1}, false)
+		addTri(boxMesh, [][3]float32{boxVerts[5], boxVerts[4], boxVerts[7]},
+			[][2]float32{uvBk[0], uvBk[1], uvBk[2]}, [3]float32{0, 0, -1})
+		addTri(boxMesh, [][3]float32{boxVerts[5], boxVerts[7], boxVerts[6]},
+			[][2]float32{uvBk[0], uvBk[2], uvBk[3]}, [3]float32{0, 0, -1})
 	} else {
-		addQuad([][3]float32{boxVerts[5], boxVerts[4], boxVerts[7], boxVerts[6]}, 
-			uvBk, [3]float32{0, 0, -1}, false)
+		addQuad(boxMesh, [][3]float32{boxVerts[5], boxVerts[4], boxVerts[7], boxVerts[6]},
+			uvBk, [3]float32{0, 0, -1})
 	}
-	
+
 	// Right face
 	uvR := addUVSet("right", nil, false, false, nil, 0)
 	if isTrapezoid {
-		addTri([][3]float32{boxVerts[1], boxVerts[5], boxVerts[6]}, 
-			[][2]float32{uvR[0], uvR[1], uvR[2]}, [3]float32{1, 0, 0}, false)
-		addTri([][3]float32{boxVerts[1], boxVerts[6], boxVerts[2]}, 
-			[][2]float32{uvR[0], uvR[2], uvR[3]}, [3]float32{1, 0, 0}, false)
+		addTri(boxMesh, [][3]float32{boxVerts[1], boxVerts[5], boxVerts[6]},
+			[][2]float32{uvR[0], uvR[1], uvR[2]}, [3]float32{1, 0, 0})
+		addTri(boxMesh, [][3]float32{boxVerts[1], boxVerts[6], boxVerts[2]},
+			[][2]float32{uvR[0], uvR[2], uvR[3]}, [3]float32{1, 0, 0})
 	} else {
-		addQuad([][3]float32{boxVerts[1], boxVerts[5], boxVerts[6], boxVerts[2]}, 
-			uvR, [3]float32{1, 0, 0}, false)
+		addQuad(boxMesh, [][3]float32{boxVerts[1], boxVerts[5], boxVerts[6], boxVerts[2]},
+			uvR, [3]float32{1, 0, 0})
 	}
-	
+
 	// Left face
 	uvL := addUVSet("left", nil, false, false, nil, 0)
 	if isTrapezoid {
-		addTri([][3]float32{boxVerts[4], boxVerts[0], boxVerts[3]}, 
-			[][2]float32{uvL[0], uvL[1], uvL[2]}, [3]float32{-1, 0, 0}, false)
-		addTri([][3]float32{boxVerts[4], boxVerts[3], boxVerts[7]}, 
-			[][2]float32{uvL[0], uvL[2], uvL[3]}, [3]float32{-1, 0, 0}, false)
+		addTri(boxMesh, [][3]float32{boxVerts[4], boxVerts[0], boxVerts[3]},
+			[][2]float32{uvL[0], uvL[1], uvL[2]}, [3]float32{-1, 0, 0})
+		addTri(boxMesh, [][3]float32{boxVerts[4], boxVerts[3], boxVerts[7]},
+			[][2]float32{uvL[0], uvL[2], uvL[3]}, [3]float32{-1, 0, 0})
 	} else {
-		addQuad([][3]float32{boxVerts[4], boxVerts[0], boxVerts[3], boxVerts[7]}, 
-			uvL, [3]float32{-1, 0, 0}, false)
+		addQuad(boxMesh, [][3]float32{boxVerts[4], boxVerts[0], boxVerts[3], boxVerts[7]},
+			uvL, [3]float32{-1, 0, 0})
 	}
-	
+
 	// Top face
 	uvT := addUVSet("top", nil, false, false, nil, 0)
-	addQuad([][3]float32{boxVerts[3], boxVerts[2], boxVerts[6], boxVerts[7]}, 
-		uvT, [3]float32{0, 1, 0}, false)
-	
+	addQuad(boxMesh, [][3]float32{boxVerts[3], boxVerts[2], boxVerts[6], boxVerts[7]},
+		uvT, [3]float32{0, 1, 0})
+
 	// Bottom face
 	uvB := addUVSet("bottom", nil, false, false, nil, 0)
-	addQuad([][3]float32{boxVerts[4], boxVerts[5], boxVerts[1], boxVerts[0]}, 
-		uvB, [3]float32{0, -1, 0}, false)
-	
+	addQuad(boxMesh, [][3]float32{boxVerts[4], boxVerts[5], boxVerts[1], boxVerts[0]},
+		uvB, [3]float32{0, -1, 0})
+
+	// ========================
 	// Gatefold geometry
-	if hasGatefold {
-		gfD := d * GatefoldDepthOffset
-		
-		var gfVerts [][3]float32
-		if gatefoldOnBack {
-			gfZ := -d
-			gfOffset := -gfD
-			gfVerts = [][3]float32{
-				{float32(w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(-w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(-topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(w), float32(-h), float32(gfZ)},
-				{float32(-w), float32(-h), float32(gfZ)},
-				{float32(-topW), float32(h), float32(gfZ)},
-				{float32(topW), float32(h), float32(gfZ)},
-			}
-		} else {
-			gfZ := d
-			gfOffset := gfD
-			gfVerts = [][3]float32{
-				{float32(-w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(w), float32(-h), float32(gfZ + gfOffset)},
-				{float32(topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(-topW), float32(h), float32(gfZ + gfOffset)},
-				{float32(-w), float32(-h), float32(gfZ)},
-				{float32(w), float32(-h), float32(gfZ)},
-				{float32(topW), float32(h), float32(gfZ)},
-				{float32(-topW), float32(h), float32(gfZ)},
-			}
+	// ========================
+	gfD := d * GatefoldDepthOffset
+
+	switch gatefoldMode {
+	case GatefoldSingleFront:
+		// Single full-width flap on front — node name: "GatefoldFront"
+		gfMesh := &MeshPart{Name: "GatefoldFront"}
+		parts = append(parts, gfMesh)
+
+		gfZ := d
+		gfOffset := gfD
+		gfVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
 		}
-		
-		// Gatefold front
-		uvGf := addUVSet("gatefold_front", trapRatio, false, false, nil, 0)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[0], gfVerts[1], gfVerts[2]}, 
-				[][2]float32{uvGf[0], uvGf[1], uvGf[2]}, [3]float32{0, 0, 1}, true)
-			addTri([][3]float32{gfVerts[0], gfVerts[2], gfVerts[3]}, 
-				[][2]float32{uvGf[0], uvGf[2], uvGf[3]}, [3]float32{0, 0, 1}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[0], gfVerts[1], gfVerts[2], gfVerts[3]}, 
-				uvGf, [3]float32{0, 0, 1}, true)
-		}
-		
-		// Gatefold back
-		rotationAngle := 0
-		flipGatefoldBack := false
+
+		// Determine back face flip/rotation based on box type
+		flipBack := false
 		var flipVert *bool
-		
-		if !gatefoldOnBack && (gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold")) {
-			flipGatefoldBack = true
+		backRotation := 0
+
+		if gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold") {
+			flipBack = true
 			f := false
 			flipVert = &f
 		} else if gameInfo.BoxType == models.FindBoxTypeIDByName("Big Box With Vertical Gatefold But Horizontal") {
-			rotationAngle = -90
+			backRotation = -90
 		} else {
-			flipGatefoldBack = isTrapezoid && !gatefoldOnBack
+			flipBack = isTrapezoid
 		}
-		
-		uvGb := addUVSet("gatefold_back", trapRatio, false, flipGatefoldBack, flipVert, rotationAngle)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[5], gfVerts[4], gfVerts[7]}, 
-				[][2]float32{uvGb[0], uvGb[1], uvGb[2]}, [3]float32{0, 0, -1}, true)
-			addTri([][3]float32{gfVerts[5], gfVerts[7], gfVerts[6]}, 
-				[][2]float32{uvGb[0], uvGb[2], uvGb[3]}, [3]float32{0, 0, -1}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[5], gfVerts[4], gfVerts[7], gfVerts[6]}, 
-				uvGb, [3]float32{0, 0, -1}, true)
-		}
-		
-		// Gatefold top (reuse main box top texture)
-		uvGt := addUVSet("top", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[3], gfVerts[2], gfVerts[6]}, 
-				[][2]float32{uvGt[0], uvGt[1], uvGt[2]}, [3]float32{0, 1, 0}, true)
-			addTri([][3]float32{gfVerts[3], gfVerts[6], gfVerts[7]}, 
-				[][2]float32{uvGt[0], uvGt[2], uvGt[3]}, [3]float32{0, 1, 0}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[3], gfVerts[2], gfVerts[6], gfVerts[7]}, 
-				uvGt, [3]float32{0, 1, 0}, true)
-		}
-		
-		// Gatefold bottom (reuse main box bottom texture)
-		uvGbot := addUVSet("bottom", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[1], gfVerts[5], gfVerts[4]}, 
-				[][2]float32{uvGbot[2], uvGbot[3], uvGbot[0]}, [3]float32{0, -1, 0}, true)
-			addTri([][3]float32{gfVerts[1], gfVerts[4], gfVerts[0]}, 
-				[][2]float32{uvGbot[2], uvGbot[0], uvGbot[1]}, [3]float32{0, -1, 0}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[1], gfVerts[5], gfVerts[4], gfVerts[0]}, 
-				uvGbot, [3]float32{0, -1, 0}, true)
-		}
-		
-		// Gatefold right (reuse main box right texture)
-		uvGr := addUVSet("right", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[1], gfVerts[5], gfVerts[6]}, 
-				[][2]float32{uvGr[0], uvGr[1], uvGr[2]}, [3]float32{1, 0, 0}, true)
-			addTri([][3]float32{gfVerts[1], gfVerts[6], gfVerts[2]}, 
-				[][2]float32{uvGr[0], uvGr[2], uvGr[3]}, [3]float32{1, 0, 0}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[1], gfVerts[5], gfVerts[6], gfVerts[2]}, 
-				uvGr, [3]float32{1, 0, 0}, true)
-		}
-		
-		// Gatefold left (reuse main box left texture)
-		uvGl := addUVSet("left", nil, false, false, nil, 0)
-		if isTrapezoid {
-			addTri([][3]float32{gfVerts[4], gfVerts[0], gfVerts[3]}, 
-				[][2]float32{uvGl[0], uvGl[1], uvGl[2]}, [3]float32{-1, 0, 0}, true)
-			addTri([][3]float32{gfVerts[4], gfVerts[3], gfVerts[7]}, 
-				[][2]float32{uvGl[0], uvGl[2], uvGl[3]}, [3]float32{-1, 0, 0}, true)
-		} else {
-			addQuad([][3]float32{gfVerts[4], gfVerts[0], gfVerts[3], gfVerts[7]}, 
-				uvGl, [3]float32{-1, 0, 0}, true)
-		}
-	}
-	
-	return &GLTFData{
-		JSON:       createGLTFStructure(gameInfo, atlas, hasGatefold, binaryData),
-		BinaryData: binaryData,
-	}
-}
 
-func createGLTFStructure(gameInfo *GameInfo, atlas *AtlasResult, hasGatefold bool, binaryData *BinaryData) map[string]interface{} {
-	boxName := slug.Make(gameInfo.Title)
-	
-	// Calculate bounds for box positions
-	minPos := []float32{binaryData.Positions[0], binaryData.Positions[1], binaryData.Positions[2]}
-	maxPos := []float32{binaryData.Positions[0], binaryData.Positions[1], binaryData.Positions[2]}
-	
-	for i := 0; i < len(binaryData.Positions); i += 3 {
-		x, y, z := binaryData.Positions[i], binaryData.Positions[i+1], binaryData.Positions[i+2]
-		if x < minPos[0] { minPos[0] = x }
-		if y < minPos[1] { minPos[1] = y }
-		if z < minPos[2] { minPos[2] = z }
-		if x > maxPos[0] { maxPos[0] = x }
-		if y > maxPos[1] { maxPos[1] = y }
-		if z > maxPos[2] { maxPos[2] = z }
-	}
-	
-	// Build nodes - start with box
-	nodes := []map[string]interface{}{
-		{
-			"mesh": 0,
-			"name": "Box",
-		},
-	}
-	
-	// Build meshes - start with box
-	meshes := []map[string]interface{}{
-		{
-			"name": "Box",
-			"primitives": []map[string]interface{}{
-				{
-					"attributes": map[string]interface{}{
-						"POSITION":   0,
-						"NORMAL":     1,
-						"TEXCOORD_0": 2,
-					},
-					"indices":  3,
-					"material": 0,
-				},
-			},
-		},
-	}
-	
-	// Build accessors - start with box accessors
-	accessors := []map[string]interface{}{
-		{ // 0: Box POSITION
-			"bufferView":    0,
-			"componentType": 5126, // FLOAT
-			"count":         len(binaryData.Positions) / 3,
-			"type":          "VEC3",
-			"min":           []float32{minPos[0], minPos[1], minPos[2]},
-			"max":           []float32{maxPos[0], maxPos[1], maxPos[2]},
-		},
-		{ // 1: Box NORMAL
-			"bufferView":    1,
-			"componentType": 5126, // FLOAT
-			"count":         len(binaryData.Normals) / 3,
-			"type":          "VEC3",
-		},
-		{ // 2: Box TEXCOORD_0
-			"bufferView":    2,
-			"componentType": 5126, // FLOAT
-			"count":         len(binaryData.UVs) / 2,
-			"type":          "VEC2",
-		},
-		{ // 3: Box INDICES
-			"bufferView":    3,
-			"componentType": 5123, // UNSIGNED_SHORT
-			"count":         len(binaryData.Indices),
-			"type":          "SCALAR",
-		},
-	}
-	
-	// Build buffer views
-	currentOffset := 0
-	bufferViews := []map[string]interface{}{
-		{ // 0: Box Positions
-			"buffer":     0,
-			"byteOffset": currentOffset,
-			"byteLength": len(binaryData.Positions) * 4,
-			"target":     34962, // ARRAY_BUFFER
-		},
-	}
-	currentOffset += len(binaryData.Positions) * 4
-	
-	bufferViews = append(bufferViews, map[string]interface{}{ // 1: Box Normals
-		"buffer":     0,
-		"byteOffset": currentOffset,
-		"byteLength": len(binaryData.Normals) * 4,
-		"target":     34962,
-	})
-	currentOffset += len(binaryData.Normals) * 4
-	
-	bufferViews = append(bufferViews, map[string]interface{}{ // 2: Box UVs
-		"buffer":     0,
-		"byteOffset": currentOffset,
-		"byteLength": len(binaryData.UVs) * 4,
-		"target":     34962,
-	})
-	currentOffset += len(binaryData.UVs) * 4
-	
-	bufferViews = append(bufferViews, map[string]interface{}{ // 3: Box Indices
-		"buffer":     0,
-		"byteOffset": currentOffset,
-		"byteLength": len(binaryData.Indices) * 2,
-		"target":     34963, // ELEMENT_ARRAY_BUFFER
-	})
-	currentOffset += len(binaryData.Indices) * 2
-	
-	// Add gatefold if present
-	sceneNodes := []int{0}
-	if hasGatefold && len(binaryData.GatefoldPositions) > 0 {
-		// Calculate gatefold bounds
-		gfMinPos := []float32{binaryData.GatefoldPositions[0], binaryData.GatefoldPositions[1], binaryData.GatefoldPositions[2]}
-		gfMaxPos := []float32{binaryData.GatefoldPositions[0], binaryData.GatefoldPositions[1], binaryData.GatefoldPositions[2]}
-		
-		for i := 0; i < len(binaryData.GatefoldPositions); i += 3 {
-			x, y, z := binaryData.GatefoldPositions[i], binaryData.GatefoldPositions[i+1], binaryData.GatefoldPositions[i+2]
-			if x < gfMinPos[0] { gfMinPos[0] = x }
-			if y < gfMinPos[1] { gfMinPos[1] = y }
-			if z < gfMinPos[2] { gfMinPos[2] = z }
-			if x > gfMaxPos[0] { gfMaxPos[0] = x }
-			if y > gfMaxPos[1] { gfMaxPos[1] = y }
-			if z > gfMaxPos[2] { gfMaxPos[2] = z }
-		}
-		
-		// Add gatefold node
-		nodes = append(nodes, map[string]interface{}{
-			"mesh": 1,
-			"name": "Gatefold",
-		})
-		sceneNodes = append(sceneNodes, 1)
-		
-		// Add gatefold mesh
-		meshes = append(meshes, map[string]interface{}{
-			"name": "Gatefold",
-			"primitives": []map[string]interface{}{
-				{
-					"attributes": map[string]interface{}{
-						"POSITION":   4,
-						"NORMAL":     5,
-						"TEXCOORD_0": 6,
-					},
-					"indices":  7,
-					"material": 0,
-				},
-			},
-		})
-		
-		// Add gatefold accessors
-		accessors = append(accessors,
-			map[string]interface{}{ // 4: Gatefold POSITION
-				"bufferView":    4,
-				"componentType": 5126,
-				"count":         len(binaryData.GatefoldPositions) / 3,
-				"type":          "VEC3",
-				"min":           []float32{gfMinPos[0], gfMinPos[1], gfMinPos[2]},
-				"max":           []float32{gfMaxPos[0], gfMaxPos[1], gfMaxPos[2]},
-			},
-			map[string]interface{}{ // 5: Gatefold NORMAL
-				"bufferView":    5,
-				"componentType": 5126,
-				"count":         len(binaryData.GatefoldNormals) / 3,
-				"type":          "VEC3",
-			},
-			map[string]interface{}{ // 6: Gatefold TEXCOORD_0
-				"bufferView":    6,
-				"componentType": 5126,
-				"count":         len(binaryData.GatefoldUVs) / 2,
-				"type":          "VEC2",
-			},
-			map[string]interface{}{ // 7: Gatefold INDICES
-				"bufferView":    7,
-				"componentType": 5123,
-				"count":         len(binaryData.GatefoldIndices),
-				"type":          "SCALAR",
-			},
-		)
-		
-		// Add gatefold buffer views
-		bufferViews = append(bufferViews,
-			map[string]interface{}{ // 4: Gatefold Positions
-				"buffer":     0,
-				"byteOffset": currentOffset,
-				"byteLength": len(binaryData.GatefoldPositions) * 4,
-				"target":     34962,
-			},
-		)
-		currentOffset += len(binaryData.GatefoldPositions) * 4
-		
-		bufferViews = append(bufferViews,
-			map[string]interface{}{ // 5: Gatefold Normals
-				"buffer":     0,
-				"byteOffset": currentOffset,
-				"byteLength": len(binaryData.GatefoldNormals) * 4,
-				"target":     34962,
-			},
-		)
-		currentOffset += len(binaryData.GatefoldNormals) * 4
-		
-		bufferViews = append(bufferViews,
-			map[string]interface{}{ // 6: Gatefold UVs
-				"buffer":     0,
-				"byteOffset": currentOffset,
-				"byteLength": len(binaryData.GatefoldUVs) * 4,
-				"target":     34962,
-			},
-		)
-		currentOffset += len(binaryData.GatefoldUVs) * 4
-		
-		bufferViews = append(bufferViews,
-			map[string]interface{}{ // 7: Gatefold Indices
-				"buffer":     0,
-				"byteOffset": currentOffset,
-				"byteLength": len(binaryData.GatefoldIndices) * 2,
-				"target":     34963,
-			},
-		)
-		currentOffset += len(binaryData.GatefoldIndices) * 2
-	}
-	
-	// Create complete glTF structure
-	gltf := map[string]interface{}{
-		"asset": map[string]interface{}{
-			"version":   "2.0",
-			"generator": "BigBoxDB glTF Generator",
-		},
-		"scene": 0,
-		"scenes": []map[string]interface{}{
-			{
-				"nodes": sceneNodes,
-			},
-		},
-		"nodes": nodes,
-		"meshes": meshes,
-		"materials": []map[string]interface{}{
-			{
-				"name": boxName + "-material",
-				"pbrMetallicRoughness": map[string]interface{}{
-					"baseColorTexture": map[string]interface{}{
-						"index": 0,
-					},
-					"metallicFactor":  0.0,
-					"roughnessFactor": 1.0,
-				},
-			},
-		},
-		"textures": []map[string]interface{}{
-			{
-				"source": 0,
-			},
-		},
-		"images": []map[string]interface{}{
-			{
-				"mimeType": "image/ktx2",
-				"bufferView": len(bufferViews), // Will be the next buffer view
-			},
-		},
-		"accessors":   accessors,
-		"bufferViews": bufferViews,
-		"buffers": []map[string]interface{}{
-			{
-				"byteLength": currentOffset, // Will be updated with texture data
-			},
-		},
-	}
-	
-	// Add KTX2 extension
-	gltf["extensionsUsed"] = []string{"KHR_texture_basisu"}
-	gltf["textures"].([]map[string]interface{})[0]["extensions"] = map[string]interface{}{
-		"KHR_texture_basisu": map[string]interface{}{
-			"source": 0,
-		},
-	}
-	
-	return gltf
-}
+		addGatefoldPanel(gfMesh, gfVerts,
+			"gatefold_front_inner", "gatefold_front_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, flipBack, flipVert, backRotation)
 
-func saveGLB(gltfData *GLTFData, outputPath, texturePath, textureFile string) error {
-	// Pack binary data in correct order matching buffer views
-	var buffer bytes.Buffer
-	
-	// Write box positions
-	for _, v := range gltfData.BinaryData.Positions {
-		binary.Write(&buffer, binary.LittleEndian, v)
-	}
-	
-	// Write box normals
-	for _, v := range gltfData.BinaryData.Normals {
-		binary.Write(&buffer, binary.LittleEndian, v)
-	}
-	
-	// Write box UVs
-	for _, v := range gltfData.BinaryData.UVs {
-		binary.Write(&buffer, binary.LittleEndian, v)
-	}
-	
-	// Write box indices
-	for _, v := range gltfData.BinaryData.Indices {
-		binary.Write(&buffer, binary.LittleEndian, v)
-	}
-	
-	// Write gatefold data if present
-	if len(gltfData.BinaryData.GatefoldPositions) > 0 {
-		for _, v := range gltfData.BinaryData.GatefoldPositions {
-			binary.Write(&buffer, binary.LittleEndian, v)
+	case GatefoldSingleBack:
+		// Single full-width flap on back — node name: "GatefoldBack"
+		gfMesh := &MeshPart{Name: "GatefoldBack"}
+		parts = append(parts, gfMesh)
+
+		gfZ := -d
+		gfOffset := -gfD
+		gfVerts := [][3]float32{
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
 		}
-		for _, v := range gltfData.BinaryData.GatefoldNormals {
-			binary.Write(&buffer, binary.LittleEndian, v)
+
+		addGatefoldPanel(gfMesh, gfVerts,
+			"gatefold_back_inner", "gatefold_back_back",
+			[3]float32{0, 0, -1}, [3]float32{0, 0, 1},
+			trapRatio, false, nil, 0)
+
+	case GatefoldDoubleFront:
+		// Two half-width flaps on the front face, splitting at x=0
+		// Left flap: from -w to 0 (hinges on left edge at x=-w)
+		// Right flap: from 0 to w (hinges on right edge at x=w)
+		// Node names: "GatefoldFrontLeft", "GatefoldFrontRight"
+
+		gfZ := d
+		gfOffset := gfD
+
+		// Determine the back texture key — use gatefold_double_back if available,
+		// otherwise fall back to gatefold_double_inner
+		backTex := "gatefold_double_back"
+		if _, ok := atlas.Positions[backTex]; !ok {
+			backTex = "gatefold_double_inner"
 		}
-		for _, v := range gltfData.BinaryData.GatefoldUVs {
-			binary.Write(&buffer, binary.LittleEndian, v)
+
+		// --- Left flap ---
+		gfLeftMesh := &MeshPart{Name: "GatefoldFrontLeft"}
+		parts = append(parts, gfLeftMesh)
+
+		gfLeftVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},      // 0: bottom-left front
+			{float32(0), float32(-h), float32(gfZ + gfOffset)},       // 1: bottom-center front
+			{float32(0), float32(h), float32(gfZ + gfOffset)},        // 2: top-center front
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},    // 3: top-left front
+			{float32(-w), float32(-h), float32(gfZ)},                 // 4: bottom-left back
+			{float32(0), float32(-h), float32(gfZ)},                  // 5: bottom-center back
+			{float32(0), float32(h), float32(gfZ)},                   // 6: top-center back
+			{float32(-topW), float32(h), float32(gfZ)},               // 7: top-left back
 		}
-		for _, v := range gltfData.BinaryData.GatefoldIndices {
-			binary.Write(&buffer, binary.LittleEndian, v)
+
+		addGatefoldPanel(gfLeftMesh, gfLeftVerts,
+			"gatefold_front_left", backTex,
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
+
+		// --- Right flap ---
+		gfRightMesh := &MeshPart{Name: "GatefoldFrontRight"}
+		parts = append(parts, gfRightMesh)
+
+		gfRightVerts := [][3]float32{
+			{float32(0), float32(-h), float32(gfZ + gfOffset)},       // 0: bottom-center front
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},       // 1: bottom-right front
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},     // 2: top-right front
+			{float32(0), float32(h), float32(gfZ + gfOffset)},        // 3: top-center front
+			{float32(0), float32(-h), float32(gfZ)},                  // 4: bottom-center back
+			{float32(w), float32(-h), float32(gfZ)},                  // 5: bottom-right back
+			{float32(topW), float32(h), float32(gfZ)},                // 6: top-right back
+			{float32(0), float32(h), float32(gfZ)},                   // 7: top-center back
 		}
+
+		addGatefoldPanel(gfRightMesh, gfRightVerts,
+			"gatefold_front_right", backTex,
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, false, nil, 0)
+
+	case GatefoldFrontAndBack:
+		// Full-width flap on front — node name: "GatefoldFront"
+		gfFrontMesh := &MeshPart{Name: "GatefoldFront"}
+		parts = append(parts, gfFrontMesh)
+
+		gfZ := d
+		gfOffset := gfD
+		gfFrontVerts := [][3]float32{
+			{float32(-w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(w), float32(-h), float32(gfZ + gfOffset)},
+			{float32(topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-topW), float32(h), float32(gfZ + gfOffset)},
+			{float32(-w), float32(-h), float32(gfZ)},
+			{float32(w), float32(-h), float32(gfZ)},
+			{float32(topW), float32(h), float32(gfZ)},
+			{float32(-topW), float32(h), float32(gfZ)},
+		}
+
+		// Determine front flap back face flip/rotation based on box type
+		flipFrontBack := false
+		var flipFrontVert *bool
+		frontBackRotation := 0
+
+		if gameInfo.BoxType == models.FindBoxTypeIDByName("Eidos Trapezoid") || gameInfo.BoxType == models.FindBoxTypeIDByName("Small Box With Vertical Gatefold") {
+			flipFrontBack = true
+			f := false
+			flipFrontVert = &f
+		} else {
+			flipFrontBack = isTrapezoid
+		}
+
+		addGatefoldPanel(gfFrontMesh, gfFrontVerts,
+			"gatefold_front_inner", "gatefold_front_back",
+			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			trapRatio, flipFrontBack, flipFrontVert, frontBackRotation)
+
+		// Full-width flap on back — node name: "GatefoldBack"
+		gfBackMesh := &MeshPart{Name: "GatefoldBack"}
+		parts = append(parts, gfBackMesh)
+
+		gfBackZ := -d
+		gfBackOffset := -gfD
+		gfBackVerts := [][3]float32{
+			{float32(w), float32(-h), float32(gfBackZ + gfBackOffset)},
+			{float32(-w), float32(-h), float32(gfBackZ + gfBackOffset)},
+			{float32(-topW), float32(h), float32(gfBackZ + gfBackOffset)},
+			{float32(topW), float32(h), float32(gfBackZ + gfBackOffset)},
+			{float32(w), float32(-h), float32(gfBackZ)},
+			{float32(-w), float32(-h), float32(gfBackZ)},
+			{float32(-topW), float32(h), float32(gfBackZ)},
+			{float32(topW), float32(h), float32(gfBackZ)},
+		}
+
+		addGatefoldPanel(gfBackMesh, gfBackVerts,
+			"gatefold_back_inner", "gatefold_back_back",
+			[3]float32{0, 0, -1}, [3]float32{0, 0, 1},
+			trapRatio, false, nil, 0)
 	}
-	
-	// Read texture data
-	textureData, err := os.ReadFile(texturePath)
-	if err != nil {
-		return fmt.Errorf("failed to read texture: %w", err)
-	}
-	
-	// Add buffer view for texture in the JSON
-	textureBufferView := map[string]interface{}{
-		"buffer":     0,
-		"byteOffset": buffer.Len(),
-		"byteLength": len(textureData),
-	}
-	
-	// Update the glTF JSON to include texture buffer view
-	bufferViews := gltfData.JSON["bufferViews"].([]map[string]interface{})
-	bufferViews = append(bufferViews, textureBufferView)
-	gltfData.JSON["bufferViews"] = bufferViews
-	
-	// Update image to reference the buffer view
-	images := gltfData.JSON["images"].([]map[string]interface{})
-	images[0]["bufferView"] = len(bufferViews) - 1
-	gltfData.JSON["images"] = images
-	
-	// Write texture data to buffer
-	buffer.Write(textureData)
-	
-	// Update total buffer length in JSON
-	buffers := gltfData.JSON["buffers"].([]map[string]interface{})
-	buffers[0]["byteLength"] = buffer.Len()
-	gltfData.JSON["buffers"] = buffers
-	
-	// Pad buffer to 4-byte alignment
-	for buffer.Len()%4 != 0 {
-		buffer.WriteByte(0)
-	}
-	
-	// Create JSON chunk
-	jsonBytes, err := json.Marshal(gltfData.JSON)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	
-	// Pad JSON to 4-byte alignment with spaces
-	for len(jsonBytes)%4 != 0 {
-		jsonBytes = append(jsonBytes, ' ')
-	}
-	
-	// Write GLB file
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
-	}
-	defer f.Close()
-	
-	// GLB Header (12 bytes)
-	// Magic: "glTF" (4 bytes)
-	if _, err := f.Write([]byte("glTF")); err != nil {
-		return err
-	}
-	
-	// Version: 2 (4 bytes)
-	if err := binary.Write(f, binary.LittleEndian, uint32(2)); err != nil {
-		return err
-	}
-	
-	// Total length (4 bytes)
-	totalLength := 12 + 8 + len(jsonBytes) + 8 + buffer.Len()
-	if err := binary.Write(f, binary.LittleEndian, uint32(totalLength)); err != nil {
-		return err
-	}
-	
-	// JSON Chunk (8 bytes header + data)
-	// Chunk length
-	if err := binary.Write(f, binary.LittleEndian, uint32(len(jsonBytes))); err != nil {
-		return err
-	}
-	
-	// Chunk type: "JSON"
-	if _, err := f.Write([]byte("JSON")); err != nil {
-		return err
-	}
-	
-	// Chunk data
-	if _, err := f.Write(jsonBytes); err != nil {
-		return err
-	}
-	
-	// Binary Chunk (8 bytes header + data)
-	// Chunk length
-	if err := binary.Write(f, binary.LittleEndian, uint32(buffer.Len())); err != nil {
-		return err
-	}
-	
-	// Chunk type: "BIN\x00"
-	if _, err := f.Write([]byte("BIN\x00")); err != nil {
-		return err
-	}
-	
-	// Chunk data
-	if _, err := f.Write(buffer.Bytes()); err != nil {
-		return err
-	}
-	
-	return nil
+
+	return parts
 }
 
 func CleanupKTX2Files(webdir string) {

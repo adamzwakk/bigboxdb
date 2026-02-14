@@ -8,6 +8,9 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gosimple/slug v1.15.0
 	github.com/joho/godotenv v1.5.1
+	github.com/meilisearch/meilisearch-go v0.36.0
+	github.com/qmuntal/gltf v0.28.0
+	github.com/redis/go-redis/v9 v9.17.3
 	github.com/sunshineplan/imgconv v1.1.14
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
@@ -41,7 +44,6 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/meilisearch/meilisearch-go v0.36.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.5.0 // indirect
@@ -49,7 +51,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
-	github.com/redis/go-redis/v9 v9.17.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sunshineplan/pdf v1.0.7 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

@@ -36,6 +36,8 @@ var BoxtypesEnum = []BoxType{
 	{ID:17, Name: "DVD Case Slipcover with Gatefold"},
 	{ID:18, Name: "New Box in Box"},
 	{ID:19, Name: "Vinyl Like With Gatefold"},
+	{ID:20, Name: "Vinyl Like With Double Gatefold"},
+	{ID:21, Name: "Big Box With Front And Back Gatefold"},
 }
 
 func FindBoxTypeIDByName(name string) (uint) {
