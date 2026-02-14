@@ -30,7 +30,7 @@ func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHei
 	// Determine thumbnail size
 	var width, height int
 	if strings.HasPrefix(filename, "front") || strings.HasPrefix(filename, "back") ||
-		strings.HasPrefix(filename, "gatefold_right") || strings.HasPrefix(filename, "gatefold_left") {
+		strings.HasPrefix(filename, "gatefold_"){
 		width = int(gWidth * UpsizeRatio)
 		height = int(gHeight * UpsizeRatio)
 	} else if strings.HasPrefix(filename, "left") || strings.HasPrefix(filename, "right") {

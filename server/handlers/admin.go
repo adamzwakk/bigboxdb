@@ -86,6 +86,10 @@ var allowedFiles = []string{
 	"top.tif", 
 	"gatefold_left.tif", 
 	"gatefold_right.tif",
+	"gatefold_back_left.tif", 
+	"gatefold_back_right.tif",
+	"gatefold_front_left.tif", 
+	"gatefold_front_right.tif",
 	"back.webp", 
 	"bottom.webp", 
 	"front.webp", 
@@ -94,6 +98,10 @@ var allowedFiles = []string{
 	"top.webp", 
 	"gatefold_left.webp", 
 	"gatefold_right.webp",
+	"gatefold_back_left.webp", 
+	"gatefold_back_right.webp",
+	"gatefold_front_left.webp", 
+	"gatefold_front_right.webp",
 }
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"

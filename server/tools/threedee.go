@@ -106,6 +106,10 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 			gatefoldPaths["front_left"] = path
 		case strings.Contains(filenameLower, "gatefold_front_right"):
 			gatefoldPaths["front_right"] = path
+		case strings.Contains(filenameLower, "gatefold_back_left"):
+			gatefoldPaths["back_left"] = path
+		case strings.Contains(filenameLower, "gatefold_back_right"):
+			gatefoldPaths["back_right"] = path
 		case strings.Contains(filenameLower, "gatefold_back"):
 			gatefoldPaths["back"] = path
 		case strings.Contains(filenameLower, "gatefold_right"):
@@ -145,8 +149,7 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		// Need textures for both front and back flaps
 		hasFront := (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
 			(gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "")
-		hasBack := gatefoldPaths["back"] != "" ||
-			(gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "")
+		hasBack := gatefoldPaths["back_left"] != "" && gatefoldPaths["back_right"] != ""
 		hasGatefold = hasFront && hasBack
 	}
 
@@ -240,16 +243,14 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 			imagesToPack["gatefold_front_back"] = frontLeftImg
 
 			// Back flap
-			backPath := gatefoldPaths["back"]
-			if backPath == "" {
-				backPath = gatefoldPaths["right"]
-			}
-			backImg := loadAndResizeImage(backPath, lowQuality)
+			backRightImg := loadAndResizeImage(gatefoldPaths["back_right"], lowQuality)
+			backLeftImg := loadAndResizeImage(gatefoldPaths["back_left"], lowQuality)
 
 			// Original back face → inside of back gatefold
 			backBaseImg := imagesToPack["back"]
 			imagesToPack["gatefold_back_inner"] = backBaseImg
-			imagesToPack["gatefold_back_back"] = backImg
+			imagesToPack["back"] = backRightImg
+			imagesToPack["gatefold_back_back"] = backLeftImg
 		}
 	}
 
@@ -355,8 +356,8 @@ func generateGLTFDocument(gameInfo *GameInfo, parts []*MeshPart, texturePath str
 		sceneNodes = append(sceneNodes, nodeIndex)
 	}
 
-	doc.Scenes = append(doc.Scenes, &gltf.Scene{Nodes: sceneNodes})
-	doc.Scene = gltf.Index(0)
+	// gltf.NewDocument() already creates one empty scene at index 0, so update it
+	doc.Scenes[0].Nodes = sceneNodes
 
 	// 2. Embed the KTX2 Texture Data
 	textureData, err := os.ReadFile(texturePath)
@@ -938,7 +939,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode Gatef
 
 		addGatefoldPanel(gfMesh, gfVerts,
 			"gatefold_back_inner", "gatefold_back_back",
-			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			[3]float32{0, 0, -1}, [3]float32{0, 0, 1},
 			trapRatio, false, nil, 0)
 
 	case GatefoldDoubleFront:
@@ -1052,7 +1053,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode Gatef
 
 		addGatefoldPanel(gfBackMesh, gfBackVerts,
 			"gatefold_back_inner", "gatefold_back_back",
-			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
+			[3]float32{0, 0, -1}, [3]float32{0, 0, 1},
 			trapRatio, false, nil, 0)
 	}
 
