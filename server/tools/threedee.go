@@ -102,6 +102,10 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		filenameLower := strings.ToLower(filepath.Base(path))
 
 		switch {
+		case strings.Contains(filenameLower, "gatefold_front_left_back"):
+			gatefoldPaths["front_left_back"] = path
+		case strings.Contains(filenameLower, "gatefold_front_right_back"):
+			gatefoldPaths["front_right_back"] = path
 		case strings.Contains(filenameLower, "gatefold_front_left"):
 			gatefoldPaths["front_left"] = path
 		case strings.Contains(filenameLower, "gatefold_front_right"):
@@ -144,7 +148,8 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		hasGatefold = (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
 			(gatefoldPaths["back"] != "")
 	case GatefoldDoubleFront:
-		hasGatefold = gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != ""
+		hasGatefold = gatefoldPaths["front_left"] != "" && gatefoldPaths["front_right"] != "" &&
+			gatefoldPaths["front_left_back"] != "" && gatefoldPaths["front_right_back"] != ""
 	case GatefoldFrontAndBack:
 		// Need textures for both front and back flaps
 		hasFront := (gatefoldPaths["left"] != "" && gatefoldPaths["right"] != "") ||
@@ -207,20 +212,19 @@ func GenerateGLTFBox(gameInfo *GameInfo, texturePaths []string, outputDir string
 		case GatefoldDoubleFront:
 			frontLeftImg := loadAndResizeImage(gatefoldPaths["front_left"], lowQuality)
 			frontRightImg := loadAndResizeImage(gatefoldPaths["front_right"], lowQuality)
+			frontLeftBackImg := loadAndResizeImage(gatefoldPaths["front_left_back"], lowQuality)
+			frontRightBackImg := loadAndResizeImage(gatefoldPaths["front_right_back"], lowQuality)
 
-			// The original front face becomes the inside (visible when doors open)
-			baseFaceImg := imagesToPack["front"]
-			imagesToPack["gatefold_double_inner"] = baseFaceImg
+			// The original front face stays as-is — visible when both doors are open
+			// (no need to move it, the box "front" face is the inner middle)
 
-			// Each flap's outer face
+			// Each flap's outer face (what you see when closed)
 			imagesToPack["gatefold_front_left"] = frontLeftImg
 			imagesToPack["gatefold_front_right"] = frontRightImg
 
-			// Optional: if there's a gatefold_back texture, use it for the back of the flaps
-			if gatefoldPaths["back"] != "" {
-				gatefoldBackImg := loadAndResizeImage(gatefoldPaths["back"], lowQuality)
-				imagesToPack["gatefold_double_back"] = gatefoldBackImg
-			}
+			// Each flap's inner face (what you see when opened)
+			imagesToPack["gatefold_front_left_back"] = frontLeftBackImg
+			imagesToPack["gatefold_front_right_back"] = frontRightBackImg
 
 		case GatefoldFrontAndBack:
 			// Front flap — prefer new naming, fall back to legacy
@@ -947,16 +951,10 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode Gatef
 		// Left flap: from -w to 0 (hinges on left edge at x=-w)
 		// Right flap: from 0 to w (hinges on right edge at x=w)
 		// Node names: "GatefoldFrontLeft", "GatefoldFrontRight"
+		// The box "front" face remains as the inner middle visible when both doors open.
 
 		gfZ := d
 		gfOffset := gfD
-
-		// Determine the back texture key — use gatefold_double_back if available,
-		// otherwise fall back to gatefold_double_inner
-		backTex := "gatefold_double_back"
-		if _, ok := atlas.Positions[backTex]; !ok {
-			backTex = "gatefold_double_inner"
-		}
 
 		// --- Left flap ---
 		gfLeftMesh := &MeshPart{Name: "GatefoldFrontLeft"}
@@ -974,7 +972,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode Gatef
 		}
 
 		addGatefoldPanel(gfLeftMesh, gfLeftVerts,
-			"gatefold_front_left", backTex,
+			"gatefold_front_left", "gatefold_front_left_back",
 			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
 			trapRatio, false, nil, 0)
 
@@ -994,7 +992,7 @@ func generateGeometry(gameInfo *GameInfo, atlas *AtlasResult, gatefoldMode Gatef
 		}
 
 		addGatefoldPanel(gfRightMesh, gfRightVerts,
-			"gatefold_front_right", backTex,
+			"gatefold_front_right", "gatefold_front_right_back",
 			[3]float32{0, 0, 1}, [3]float32{0, 0, -1},
 			trapRatio, false, nil, 0)
 

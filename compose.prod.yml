@@ -9,7 +9,7 @@ services:
       - APP_ENV=production
       - GIN_MODE=release
       - MYSQL_HOST=mariadb
-      - REDIS_ADDR=redis:6379
+      - REDIS_ADDR=redis
       - MEILI_URL=http://meilisearch:7700
       - VITE_MEILI_URL=http://localhost:8081/search ## Switch with live URL
     build:
@@ -34,6 +34,8 @@ services:
     image: redis:alpine
     restart: no
     userns_mode: keep-id
+    networks:
+      - bbdb_network
     volumes:
       - ./data-redis-prod:/data
   

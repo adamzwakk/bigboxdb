@@ -18,6 +18,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm/clause"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/dchest/uniuri"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -256,7 +257,7 @@ func ImportFromSource(source FileSource) error {
 	}
 
 	var user models.User
-	if err := database.FirstOrCreate(&user, models.User{Name: userName}).Error; err != nil {
+	if err := database.FirstOrCreate(&user, models.User{Name: userName, ApiKey: uniuri.NewLen(24)}).Error; err != nil {
 		return fmt.Errorf("could not find/create User")
 	}
 

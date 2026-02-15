@@ -11,6 +11,7 @@ pkgs.mkShell {
     pkgs.just
     pkgs.lazysql
     pkgs.zip
+    pkgs.libwebp
   ];
 
   shellHook = ''

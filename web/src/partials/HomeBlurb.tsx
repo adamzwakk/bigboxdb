@@ -5,7 +5,7 @@ export default function HomeBlurb()
     const [stats,setStats] = useState(0)
 
     useEffect(() => {
-        fetch('/api/games/all')
+        fetch('/api/variants/all')
             .then((res) => res.json())
             .then((s) => {
                 setStats(s.length)
