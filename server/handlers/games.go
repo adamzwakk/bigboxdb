@@ -21,8 +21,8 @@ type GameResponse struct {
 	Platform	string	`json:"platform"`
 	Description	*string	`json:"description"`
 	Links		[]LinkResponse `json:"links"`
-	IgdbID		int	`json:"igdb_id"`
-	MobygamesID	int	`json:"mobygames_id"`
+	IgdbSlug		*string	`json:"igdb_slug,omitempty"`
+	MobygamesID		*int	`json:"mobygames_id,omitempty"`
 }
 
 type MiniVariantResponse struct {
@@ -132,8 +132,8 @@ func getGames(options queryOptions) []GameResponse {
 			Slug: g.Slug,
 			Platform: g.Platform.Name,
 			Description: g.Description,
-			MobygamesID: *g.MobygamesID,
-			IgdbID: *g.IgdbID,
+			MobygamesID: g.MobygamesID,
+			IgdbSlug: g.IgdbSlug,
 			Variant: miniVariants,
 			Links: links,
 		})

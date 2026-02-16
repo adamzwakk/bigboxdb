@@ -19,6 +19,7 @@ type Game struct{
 
 	MobygamesID				*int
 	IgdbID					*int
+	IgdbSlug				*string
 
 	CreatedAt 				time.Time
 	UpdatedAt 				time.Time

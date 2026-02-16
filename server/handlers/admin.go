@@ -19,10 +19,12 @@ import (
 	"gorm.io/gorm/clause"
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/dchest/uniuri"
+	"github.com/Henry-Sarabia/igdb/v2"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
 	"github.com/adamzwakk/bigboxdb-server/tools"
+	"github.com/adamzwakk/bigboxdb-server/services"
 )
 
 type ImportData struct{
@@ -42,6 +44,7 @@ type ImportData struct{
 	Platform		string	`json:"platform"`
 	ScanNotes		string	`json:"scan_notes,omitempty"`
 	IGDBId			*int		`json:"igdb_id,omitempty"`
+	IgdbSlug		*string		`json:"igdb_slug,omitempty"`
 	MobygamesId		*int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
@@ -104,6 +107,8 @@ var allowedFiles = []string{
 	"gatefold_front_left.webp", 
 	"gatefold_front_right.webp",
 }
+
+var twitchClient = twitch.NewClient()
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
@@ -303,6 +308,18 @@ func ImportFromSource(source FileSource) error {
 		IgdbID: data.IGDBId,
 	}
 
+	if data.IGDBId != nil && *data.IGDBId > 0 {
+		token, err := twitchClient.GetToken()
+		igc := igdb.NewClient(twitchClient.ClientID(), token, nil)
+
+		ig, err := igc.Games.Get(*data.IGDBId, igdb.SetFields("slug"))
+		if err == nil {
+			game.IgdbSlug = &ig.Slug
+		} else {
+			log.Println(err)
+		}
+	}
+
 	database.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "slug"}},
 		DoUpdates: clause.AssignmentColumns([]string{
@@ -310,6 +327,7 @@ func ImportFromSource(source FileSource) error {
 			"description",
 			"mobygames_id",
 			"igdb_id",
+			"igdb_slug",
 		}),
 	}).Create(&game)
 

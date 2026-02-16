@@ -36,7 +36,7 @@ export default function Game() {
                             <h4 className='font-bold'>Links:</h4>
                             <ul className='gameLinks mt-2'>
                                 {game.mobygames_id && game.mobygames_id > 0 && <li className='inline'><a href={"https://www.mobygames.com/game/"+game.mobygames_id} target='_blank' className={"mobygames w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-1"}></a></li>}
-                                {game.igdb_slug && game.igdb_slug > 0 && <li className='inline'><a href={"https://www.igdb.com/game/"+game.igdb_slug} target='_blank' className={"igdb w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-1"}></a></li>}
+                                {game.igdb_slug && game.igdb_slug != "" && <li className='inline'><a href={"https://www.igdb.com/game/"+game.igdb_slug} target='_blank' className={"igdb w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-2"}></a></li>}
                                 {game.links && game.links.length > 0 && 
                                     game.links.map((l: any) => (
                                         <li key={l.id} className='inline'>

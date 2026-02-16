@@ -1,5 +1,15 @@
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/Henry-Sarabia/apicalypse v1.0.2 h1:rM2SrWlMgNwyuzP/Ty8dvc5iYb1pWVGa+kF0RvSPMoE=
+github.com/Henry-Sarabia/apicalypse v1.0.2/go.mod h1:elNsoPyACTUScwfjuZc1DLN68zFbeyDo2XlJkF1omts=
+github.com/Henry-Sarabia/blank v3.0.0+incompatible h1:3JfHWx7YVr1bA+9aK1J2w9TrFpwAHfPibHOq4qwicSc=
+github.com/Henry-Sarabia/blank v3.0.0+incompatible/go.mod h1:EKLnM7Lq0E08WmivZuJoo099i07THd4ISgOBs3wOKTw=
+github.com/Henry-Sarabia/igdb v1.0.3 h1:a/qxY5NKNuy6ak5QmG32LipLF+g/tGCYwxvRnZZC8M0=
+github.com/Henry-Sarabia/igdb v1.0.3/go.mod h1:LTutVBVku4QM89VFgZ+txxlvYztFEsh0VqMh0gpeOWM=
+github.com/Henry-Sarabia/igdb/v2 v2.0.0-alpha.4 h1:ZsyBtHcuEBVyrsP2oYIHELEAt/W18kp42B4BCsFL/IQ=
+github.com/Henry-Sarabia/igdb/v2 v2.0.0-alpha.4/go.mod h1:ooRt7UmyP40FAZncIkpM6fJ0LBUD3aMNRJQfLxGCCG8=
+github.com/Henry-Sarabia/sliceconv v1.0.2 h1:1zH/sJmocRZz1g1FrmU06GsbskWLWglj6IHhFB9TdBA=
+github.com/Henry-Sarabia/sliceconv v1.0.2/go.mod h1:FNvuZcThTpCgAjQQZjPSx7PkS/DYRT6jTV3oPQGP2lU=
 github.com/HugoSmits86/nativewebp v1.1.0 h1:4V8ftAa8nY7F4I2qof7A74qf2Fjnl3zSdllpnwpCG+E=
 github.com/HugoSmits86/nativewebp v1.1.0/go.mod h1:YNQuWenlVmSUUASVNhTDwf4d7FwYQGbGhklC8p72Vr8=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=

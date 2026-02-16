@@ -18,6 +18,11 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/Henry-Sarabia/apicalypse v1.0.2 // indirect
+	github.com/Henry-Sarabia/blank v3.0.0+incompatible // indirect
+	github.com/Henry-Sarabia/igdb v1.0.3 // indirect
+	github.com/Henry-Sarabia/igdb/v2 v2.0.0-alpha.4 // indirect
+	github.com/Henry-Sarabia/sliceconv v1.0.2 // indirect
 	github.com/HugoSmits86/nativewebp v1.1.0 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect

@@ -57,6 +57,11 @@ ul.gameLinks li a{
         background-image: url('/img/icons/mobygames.png');
     }
     &.igdb{
+        background-color: #ffffff;
+        border-radius: 5px;
+        background-position: 50% 50%;
+        padding: 2px;
+        background-size: 90%;
         background-image: url('/img/icons/igdb.svg');
     }
 }
