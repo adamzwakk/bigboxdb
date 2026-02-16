@@ -4,9 +4,7 @@ import (
     "encoding/json"
     "time"
 	"fmt"
-    // "log"
-
-	"gorm.io/gorm"
+	"os"
 
 	"github.com/adamzwakk/bigboxdb-server/db"
 	"github.com/adamzwakk/bigboxdb-server/models"
@@ -31,24 +29,27 @@ func GetMeta(slug string, variantID int) (Meta, bool) {
 	d := db.GetDB()
 
     var v models.Variant
-    q := d.Preload("Game", func(db *gorm.DB) *gorm.DB {
-        return db.Select("id", "Title", "Slug")
-    })
+    q := d.Joins("Game", d.Select("id", "Title", "Slug")).Joins("BoxType")
     if variantID > 0 {
         q = q.Where("variants.id = ?", variantID)
     } else {
-        q = q.Where("games.slug = ?", slug)
+        q = q.Where("Game.slug = ?", slug)
     }
 
     if err := q.First(&v).Error; err != nil {
         return Meta{}, false
     }
 
+	title := v.Game.Title
+	if variantID > 0 {
+		title = fmt.Sprintf("%s (%s)", v.Game.Title, v.BoxType.Name)
+	}
+
     // Build and cache
     m := Meta{
-        Title:       v.Game.Title,
+        Title:       title,
         Description: v.Description,
-        Image:       fmt.Sprintf("/scans/%s/%d/%s", v.Game.Slug, v.ID, "front.webp"),
+        Image:       fmt.Sprintf("%s/scans/%s/%d/%s", os.Getenv("SITE_URL"), v.Game.Slug, v.ID, "front.webp"),
     }
     setMeta(slug, m)
 
