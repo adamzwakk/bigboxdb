@@ -18,6 +18,7 @@ type VariantResponse struct {
 	GameID		uint	`json:"game_id"`
 	GameTitle	string	`json:"title"`
 	VariantDesc	string	`json:"variant"`
+	GameSlug	string	`json:"game_slug"`
 	Slug		string	`json:"slug"`
 	Region		string	`json:"region"`
 	Year		int		`json:"year"`
@@ -80,19 +81,33 @@ func VariantsLatest(c *gin.Context) {
 }
 
 func VariantById(c *gin.Context) {
-    id := c.Param("id")
+    id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+       c.AbortWithStatus(http.StatusBadRequest)
+       return // but you're inside the closure, so you'd need to restructure
+   }
     key := fmt.Sprintf("variant:%s", id)
     
     variant, err := db.GetOrSetCache(key, 5*time.Minute, func() (VariantResponse, error) {
-        idInt, _ := strconv.Atoi(id)
-        o := queryOptions{WhereId: idInt, Limit: 1}
-        return getVariants(o)[0], nil
+        o := queryOptions{WhereId: id, Limit: 1}
+		v := getVariants(o)
+
+		if v != nil {
+        	return v[0], nil
+		}
+		return VariantResponse{}, fmt.Errorf("404")
     })
     if err != nil {
+		if err.Error() == "404" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
-    c.JSON(http.StatusOK, variant)
+
+	c.JSON(http.StatusOK, variant)
 }
 
 func VariantsRandom(c *gin.Context) {
@@ -170,6 +185,10 @@ func getVariants(options queryOptions) []VariantResponse{
 		q.Find(&variants)
 	}
 
+	if len(variants) == 0 {
+		return nil
+	}
+
 	var resp []VariantResponse
 	for _, v := range variants {
 		dir := 0
@@ -181,6 +200,7 @@ func getVariants(options queryOptions) []VariantResponse{
 			GameID:		v.Game.ID,
 			GameTitle:	v.Game.Title,
 			VariantDesc:	fmt.Sprintf("%s", v.Description),
+			GameSlug:	v.Game.Slug,
 			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
 			Region:		v.Region.Name,
 			Year:		v.Year,

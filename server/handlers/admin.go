@@ -41,7 +41,7 @@ type ImportData struct{
 	Publisher		FirstString	`json:"publisher"`
 	Platform		string	`json:"platform"`
 	ScanNotes		string	`json:"scan_notes,omitempty"`
-	IGDBId			*int		`json:"igdb_version,omitempty"`
+	IGDBId			*int		`json:"igdb_id,omitempty"`
 	MobygamesId		*int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
@@ -291,11 +291,7 @@ func ImportFromSource(source FileSource) error {
 	for lt, url := range data.Links {
 		var ltype models.LinkType
 		database.Where(models.LinkType{SmallName: lt}).Assign(models.LinkType{Name: lt}).FirstOrCreate(&ltype)
-
-		links = append(links, models.Link{
-			TypeID: ltype.ID,
-			Link:  url,
-		})
+		links = append(links, models.Link{TypeID: ltype.ID,	Link:  url})
 	}
 
 	game := models.Game{
@@ -305,7 +301,6 @@ func ImportFromSource(source FileSource) error {
 		PlatformID:  platform.ID,
 		MobygamesID: data.MobygamesId,
 		IgdbID: data.IGDBId,
-		Links: links,
 	}
 
 	database.Clauses(clause.OnConflict{
@@ -318,8 +313,10 @@ func ImportFromSource(source FileSource) error {
 		}),
 	}).Create(&game)
 
-	if game.ID == 0 {
-		database.Where("slug = ?", slugTitle).First(&game)
+	for i := range links {
+		links[i].GameID = game.ID
+		database.Where(models.Link{GameID: game.ID, TypeID: links[i].TypeID, Link: links[i].Link}).
+			FirstOrCreate(&links[i])
 	}
 
 	variant := models.Variant{

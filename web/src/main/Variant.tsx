@@ -25,7 +25,9 @@ export default function Variant() {
         <div className='relative z-4 text-white w-full ml-auto mr-auto max-w-4xl'>
             <Header />
             {game && <>
-                <h1 className='text-[32px] font-bold text-center'>{game.title}</h1>
+                <h1 className='text-[32px] font-bold text-center'>
+                    <a className='underline' href={"/game/"+game.game_slug}>{game.title}</a> ({game.variant} {game.box_type_name})
+                </h1>
                 <div className='sm:h-200 h-100 w-[95%] ml-auto mr-auto relative max-w-6xl'>
                     <SingleGame ga={game} zd={0} showTitle={false} showFooter={true} />
                 </div>
@@ -35,7 +37,7 @@ export default function Variant() {
                             <ul>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Release Year:</h3> {game.year}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Platform:</h3> {game.platform}</li>
-                                <li><h3 className='font-bold text-[18px] mb-2 inline'>Variant:</h3> {game.variant}</li>
+                                <li><h3 className='font-bold text-[18px] mb-2 inline'>Variant:</h3> {game.variant} {game.box_type_name}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Dimensions (inches):</h3> {game.w} x {game.h} x {game.d}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Contributed By:</h3> {game.contributed_by}</li>
                             </ul>

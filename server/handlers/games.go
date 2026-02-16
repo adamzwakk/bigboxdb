@@ -18,8 +18,10 @@ type GameResponse struct {
 	Title		string	`json:"title"`
 	Variant		[]MiniVariantResponse	`json:"variants"`
 	Slug		string	`json:"slug"`
+	Platform	string	`json:"platform"`
 	Description	*string	`json:"description"`
 	Links		[]LinkResponse `json:"links"`
+	IgdbID		int	`json:"igdb_id"`
 	MobygamesID	int	`json:"mobygames_id"`
 }
 
@@ -49,9 +51,12 @@ func GamesAll(c *gin.Context){
 func GameBySlug(c *gin.Context){
 	slug := c.Param("slug")
 
-	resp := getGames(queryOptions{WhereSlug: slug, Limit: 1})[0]
-
-	c.JSON(http.StatusOK, resp)
+	resp := getGames(queryOptions{WhereSlug: slug, Limit: 1})
+	if resp != nil {
+		c.JSON(http.StatusOK, resp[0])
+	} else {
+		c.AbortWithStatus(http.StatusNotFound)
+	}
 }
 
 func getGames(options queryOptions) []GameResponse {
@@ -66,6 +71,8 @@ func getGames(options queryOptions) []GameResponse {
     }).Preload("Links.Type", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "SmallName")
 	}).Preload("Variants.BoxType", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "Name")
+	}).Preload("Platform", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "Name")
 	})
 
@@ -91,6 +98,10 @@ func getGames(options queryOptions) []GameResponse {
 		q.First(&games)
 	} else {
 		q.Find(&games)
+	}
+
+	if len(games) == 0 {
+		return nil
 	}
 
 	var resp []GameResponse
@@ -119,8 +130,10 @@ func getGames(options queryOptions) []GameResponse {
 			ID:	g.ID,
 			Title: g.Title,
 			Slug: g.Slug,
+			Platform: g.Platform.Name,
 			Description: g.Description,
 			MobygamesID: *g.MobygamesID,
+			IgdbID: *g.IgdbID,
 			Variant: miniVariants,
 			Links: links,
 		})

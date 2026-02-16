@@ -23,7 +23,7 @@ export default function Game() {
         <div className='relative z-4 text-white w-full ml-auto mr-auto max-w-4xl'>
             <Header />
             {game && <>
-                <h1 className='text-[32px] font-bold'>{game.title}</h1>
+                <h1 className='text-[32px] font-bold'>{game.title} ({game.platform})</h1>
                 <div id="game" className='flex mt-5 gap-5'>
                     <div className="w-md flex-1">
                         <img src={"/scans/"+game.slug+'/'+game.variants[0].id+'/front.webp'} alt="" />
@@ -34,12 +34,13 @@ export default function Game() {
                         </div>
                         <div className="bg-black/50 p-5 mt-5">
                             <h4 className='font-bold'>Links:</h4>
-                            <ul>
-                                <li><a href={"https://www.mobygames.com/game/"+game.mobygames_id}></a></li>
+                            <ul className='gameLinks mt-2'>
+                                {game.mobygames_id && game.mobygames_id > 0 && <li className='inline'><a href={"https://www.mobygames.com/game/"+game.mobygames_id} target='_blank' className={"mobygames w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-1"}></a></li>}
+                                {game.igdb_slug && game.igdb_slug > 0 && <li className='inline'><a href={"https://www.igdb.com/game/"+game.igdb_slug} target='_blank' className={"igdb w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-1"}></a></li>}
                                 {game.links && game.links.length > 0 && 
                                     game.links.map((l: any) => (
                                         <li key={l.id} className='inline'>
-                                            <a href={l.link} className={l.name}></a>
+                                            <a href={l.link} className={l.name+" w-[32px] h-[32px] bg-no-repeat bg-size-[100%] inline-block mr-2"} target='_blank'></a>
                                         </li>
                                     ))
                                 }

@@ -94,6 +94,7 @@ export type Game3D = Game &
 	textureFileName?: string,
     boxGeo?: BufferGeometry|BoxGeometry,
 	box_type_name?: string
+    game_slug?: string
 }
 
 export type StatsProps = {

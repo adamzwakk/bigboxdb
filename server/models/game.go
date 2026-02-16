@@ -19,10 +19,6 @@ type Game struct{
 
 	MobygamesID				*int
 	IgdbID					*int
-	
-	SteamLink				*string
-	GogLink					*string
-	OtherLink				*string
 
 	CreatedAt 				time.Time
 	UpdatedAt 				time.Time
