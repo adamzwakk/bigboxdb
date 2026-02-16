@@ -27,7 +27,7 @@ for DIR in $1; do
     
     zip -rjq "$ZIPFILE" "$TMPDIR"
     curl -H "Authorization: Bearer $2" \
-        -X PUT https://www.bigboxdb.com/api/admin/import \
+        -X PUT http://localhost:8080/api/admin/import \
         -F "file=@\"${ZIPFILE}\""
     
     rm -f "$ZIPFILE"

@@ -23,6 +23,7 @@ done
 # Copy JSON files
 cp "$DIR"/*.json "$TMPDIR"/ 2>/dev/null
 cp "$DIR"/*.webp "$TMPDIR"/ 2>/dev/null
+cp "$DIR"/*.glb "$TMPDIR"/ 2>/dev/null
 
 zip -rjq "$ZIPFILE" "$TMPDIR"
 #stat "$ZIPFILE"

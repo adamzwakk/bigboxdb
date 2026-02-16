@@ -436,6 +436,10 @@ func ImportFromSource(source FileSource) error {
 		tools.CleanupKTX2Files(gameDir)
 	}
 
+	if err := tools.OptimizeWebPImages(texPaths, data.Width, data.Height); err != nil{
+		fmt.Errorf("Could not optimize image folder")
+	}
+
 	return nil
 }
 

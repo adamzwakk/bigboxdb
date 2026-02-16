@@ -16,6 +16,7 @@ import (
 const (
 	UpsizeRatio         = 80
 	UpsizeRatioLow      = 60
+	WebPQualiity		= 70
 )
 
 func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHeight float32, gDepth float32) error {
@@ -53,7 +54,10 @@ func saveAsWebP(img image.Image, path string) error {
 	}
 	defer outFile.Close()
 
-	return imgconv.Write(outFile, img, &imgconv.FormatOption{Format: imgconv.WEBP})
+	return imgconv.Write(outFile, img, &imgconv.FormatOption{
+		Format: imgconv.WEBP,
+		EncodeOption: []imgconv.EncodeOption{imgconv.Quality(WebPQualiity)},
+	})
 }
 
 func processImageWithVips(srcPath, dstPath string, width, height int) error {
@@ -61,17 +65,42 @@ func processImageWithVips(srcPath, dstPath string, width, height int) error {
     
     if ext == ".tif" || ext == ".tiff" {
         cmd := exec.Command("vipsthumbnail", srcPath,
-            "-o", dstPath+"[Q=80]",
+            "-o", dstPath+"[Q="+string(WebPQualiity)+"]",
             "-s", fmt.Sprintf("%dx%d", width, height),
         )
         return cmd.Run()
     }
     
-    // For non-TIFF, use your existing imaging pipeline
     img, err := imaging.Open(srcPath)
     if err != nil {
         return err
     }
     resized := imaging.Fit(img, width, height, imaging.Lanczos)
     return saveAsWebP(resized, dstPath)
+}
+
+func OptimizeWebPImages(texPaths []string, gWidth float32, gHeight float32) error {
+	for _, fp := range texPaths {
+		if !strings.HasSuffix(fp, ".webp"){
+			continue
+		}
+		if filepath.Base(fp) != "front.webp" {
+			os.Remove(fp)
+			continue
+		}
+
+		var width, height int
+		width = int((gWidth * UpsizeRatio)/2)
+		height = int((gHeight * UpsizeRatio)/2)
+
+		img, err := imaging.Open(fp)
+		if err != nil {
+			return err
+		}
+		resized := imaging.Fit(img, width, height, imaging.Lanczos)
+
+		saveAsWebP(resized, fp)
+	}
+
+	return nil
 }
