@@ -27,55 +27,6 @@ import (
 	"github.com/adamzwakk/bigboxdb/services"
 )
 
-type ImportData struct{
-	Title			string	`json:"title"`
-	Description		*string	`json:"description,omitempty"`
-	Region			*string `json:"region,omitempty"`
-	SeriesSort		string	`json:"series"`
-	BoxType			uint	`json:"box_type"`
-	Width			float32	`json:"width"`
-	Height			float32	`json:"height"`
-	GatefoldTransparent		*bool `json:"gatefold_transparent"`
-	Depth			float32	`json:"depth"`
-	Year			int	`json:"year"`
-	Variant			string	`json:"variant"`
-	Developer		FirstString	`json:"developer"`
-	Publisher		FirstString	`json:"publisher"`
-	Platform		string	`json:"platform"`
-	ScanNotes		string	`json:"scan_notes,omitempty"`
-	IGDBId			*int		`json:"igdb_id,omitempty"`
-	IgdbSlug		*string		`json:"igdb_slug,omitempty"`
-	MobygamesId		*int		`json:"mobygames_id,omitempty"`
-	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
-	ContributedBy	*string	`json:"contributed_by,omitempty"`
-	Links			map[string]string `json:"links"`
-}
-
-type FirstString string
-func (f *FirstString) UnmarshalJSON(data []byte) error {
-    // Try to unmarshal as string
-    var s string
-    if err := json.Unmarshal(data, &s); err == nil {
-        *f = FirstString(s)
-        return nil
-    }
-
-    // Try to unmarshal as []string
-    var arr []string
-    if err := json.Unmarshal(data, &arr); err == nil {
-        if len(arr) > 0 {
-            *f = FirstString(arr[0])
-        } else {
-            *f = ""
-        }
-        return nil
-    }
-
-    // If neither, set empty
-    *f = ""
-    return nil
-}
-
 var destDir = "./uploads/scans/"
 // var allowedFiles = []string{"back.webp", "bottom.webp", "box.glb", "box-low.glb", "front.webp", "info.json", "left.webp", "right.webp", "top.webp"}
 var allowedFiles = []string{
@@ -242,7 +193,7 @@ func ImportFromSource(source FileSource) error {
 		return fmt.Errorf("JSON file not found: %w", err)
 	}
 
-	var data ImportData
+	var data tools.ImportData
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
