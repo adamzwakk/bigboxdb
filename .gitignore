@@ -3,6 +3,6 @@ dist
 .env
 **/uploads
 
-server/web
+bbdb/server/web
 
 !src/db

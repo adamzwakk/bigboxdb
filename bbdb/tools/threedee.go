@@ -15,7 +15,7 @@ import (
 	"github.com/qmuntal/gltf/modeler"
 	"github.com/sunshineplan/imgconv"
 
-	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb/server/models"
 )
 
 const (

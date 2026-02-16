@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	
-	"github.com/adamzwakk/bigboxdb-server/db"
-	"github.com/adamzwakk/bigboxdb-server/models"
-	"github.com/adamzwakk/bigboxdb-server/handlers"
+	"github.com/adamzwakk/bigboxdb/server/db"
+	"github.com/adamzwakk/bigboxdb/server/models"
+	"github.com/adamzwakk/bigboxdb/server/handlers"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"fmt"
     "gorm.io/gorm"
 	"github.com/dchest/uniuri"
-	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb/server/models"
 )
 
 func RunAllSeeds(db *gorm.DB) error {

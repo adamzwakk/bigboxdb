@@ -16,22 +16,22 @@ reset-db:
     podman compose down mariadb && sudo rm -rf ./data-sql && podman compose up -d mariadb
 
 build:
-    cd server && go build -o ../dist/bigboxdb_server
+    cd bbdb/server && go build -o ../dist/bigboxdb_server
 
 run-server:
-    cd server && go run . host
+    cd bbdb && go run ./server host
 
 migrate:
-    cd server && go run . migrate
+    cd bbdb/server && go run . migrate
 
 build-release:
-    cd server && go build -ldflags="-s -w" -o ../dist/bigboxdb_server_release
+    cd bbdb/server && go build -ldflags="-s -w" -o ../dist/bigboxdb_server_release
 
 get-admin-key:
     podman compose exec mariadb mariadb -D "${MYSQL_DATABASE}" -u ${MYSQL_USER} -p${MYSQL_PASSWORD} -N -s -e "select api_key from users where id = 1;"
 
 get-meilisearch-key:
-    cd server && go run . init-meilisearch
+    cd bbdb/server && go run . init-meilisearch
 
 web-install:
     cd web && npm install

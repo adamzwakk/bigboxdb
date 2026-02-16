@@ -1,4 +1,4 @@
-package twitch
+package bbdbigdb
 
 import (
 	"encoding/json"

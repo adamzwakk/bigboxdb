@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/adamzwakk/bigboxdb-server/db"
-	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb/server/db"
+	"github.com/adamzwakk/bigboxdb/server/models"
 )
 
 type VariantResponse struct {

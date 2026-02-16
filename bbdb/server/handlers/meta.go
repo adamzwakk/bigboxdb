@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/adamzwakk/bigboxdb-server/db"
-	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb/server/db"
+	"github.com/adamzwakk/bigboxdb/server/models"
 )
 
 type Meta struct {

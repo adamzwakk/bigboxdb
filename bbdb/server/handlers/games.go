@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm"
 
-	"github.com/adamzwakk/bigboxdb-server/db"
-	"github.com/adamzwakk/bigboxdb-server/models"
+	"github.com/adamzwakk/bigboxdb/server/db"
+	"github.com/adamzwakk/bigboxdb/server/models"
 )
 
 type GameResponse struct {

@@ -21,10 +21,10 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/Henry-Sarabia/igdb/v2"
 
-	"github.com/adamzwakk/bigboxdb-server/db"
-	"github.com/adamzwakk/bigboxdb-server/models"
-	"github.com/adamzwakk/bigboxdb-server/tools"
-	"github.com/adamzwakk/bigboxdb-server/services"
+	"github.com/adamzwakk/bigboxdb/server/db"
+	"github.com/adamzwakk/bigboxdb/server/models"
+	"github.com/adamzwakk/bigboxdb/tools"
+	"github.com/adamzwakk/bigboxdb/services"
 )
 
 type ImportData struct{
@@ -108,7 +108,7 @@ var allowedFiles = []string{
 	"gatefold_front_right.webp",
 }
 
-var twitchClient = twitch.NewClient()
+var igdbClient = bbdbigdb.NewClient()
 
 // Testing curl - curl -H "Authorization: Bearer {some key}" -X PUT http://localhost:8080/api/admin/import -F "file=@./testbox.zip" -H "Content-Type: multipart/form-data"
 func AdminImport(c *gin.Context){
@@ -309,8 +309,8 @@ func ImportFromSource(source FileSource) error {
 	}
 
 	if data.IGDBId != nil && *data.IGDBId > 0 {
-		token, err := twitchClient.GetToken()
-		igc := igdb.NewClient(twitchClient.ClientID(), token, nil)
+		token, err := igdbClient.GetToken()
+		igc := igdb.NewClient(igdbClient.ClientID(), token, nil)
 
 		ig, err := igc.Games.Get(*data.IGDBId, igdb.SetFields("slug"))
 		if err == nil {
