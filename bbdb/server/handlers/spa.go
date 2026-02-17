@@ -6,6 +6,7 @@ import (
     "strings"
     "strconv"
 	"regexp"
+    // "log"
 
     "github.com/gin-gonic/gin"
 )
@@ -32,9 +33,13 @@ func ServeIndex(c *gin.Context) {
 }
 
 func serveWithMeta(c *gin.Context, m Meta) {
-    html, err := os.ReadFile("./web/index.html")
+    indexPath := "./web/index.html"
+    if os.Getenv("APP_ENV") == "production" {
+        indexPath = "/usr/share/nginx/html/index.html"
+    }
+    html, err := os.ReadFile(indexPath)
     if err != nil {
-        c.File("./web/index.html")
+        c.File(indexPath)
         return
     }
 

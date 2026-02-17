@@ -25,7 +25,7 @@ func GetOrSetCache[T any](key string, ttl time.Duration, fetcher func() (T, erro
 
     // Try cache first
     cached, err := Rdb.Get(Ctx, key).Result()
-    if err == nil {
+    if os.Getenv("APP_ENV") == "production" && err == nil {
         if err := json.Unmarshal([]byte(cached), &result); err == nil {
             return result, nil
         }
