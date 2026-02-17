@@ -5,14 +5,17 @@ import (
 	"os"
 	"strings"
 	"strconv"
+	"log"
 	"encoding/json"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
+	"github.com/Henry-Sarabia/igdb/v2"
 
 	"github.com/adamzwakk/bigboxdb/server/db"
 	"github.com/adamzwakk/bigboxdb/server/models"
 	"github.com/adamzwakk/bigboxdb/tools"
+	"github.com/adamzwakk/bigboxdb/services"
 )
 
 type stepKind int
@@ -27,6 +30,7 @@ type step struct {
 	kind        stepKind
 	title       string
 	options     []string // for select types
+	optional 	bool
 }
 
 type model struct {
@@ -47,6 +51,8 @@ type model struct {
 	// Completion
 	done bool
 }
+
+var igdbClient = bbdbigdb.NewClient()
 
 func initialModel() model {
 	d := db.GetDB()
@@ -92,7 +98,8 @@ func initialModel() model {
 			},
 			{
 				kind:        textInput,
-				title:       "Should it sort by a different name?",
+				title:       "Should it sort by a different name? (optional)",
+				optional:	 true,
 			},
 			{
 				kind:        textInput,
@@ -104,7 +111,7 @@ func initialModel() model {
 			},
 			{
 				kind:        textInput,
-				title:       "What is the platform",
+				title:       "What is the platform?",
 			},
 			{
 				kind:        singleSelect,
@@ -126,18 +133,22 @@ func initialModel() model {
 			{
 				kind:        textInput,
 				title:       "Does the gatefold need a transparent flag?",
+				optional:	 true,
 			},
 			{
 				kind:        textInput,
 				title:       "Any notes about the scan?",
+				optional:	 true,
 			},
 			{
 				kind:        textInput,
 				title:       "Please enter the IGDB",
+				optional:	 true,
 			},
 			{
 				kind:        textInput,
 				title:       "Please enter the MobyGamesID",
+				optional:	 true,
 			},
 		},
 		selected: make(map[int]bool),
@@ -148,7 +159,7 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.done {
 		if msg, ok := msg.(tea.KeyMsg); ok {
 			if msg.String() == "q" || msg.String() == "ctrl+c" || msg.String() == "enter" {
@@ -187,10 +198,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) updateTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *model) updateTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
-		if len(strings.TrimSpace(m.textValue)) > 0 {
+		if m.steps[m.currentStep].optional || len(strings.TrimSpace(m.textValue)) > 0 {
 			m.saveCurrentStep()
 			m.advanceStep()
 		}
@@ -211,11 +222,14 @@ func (m model) updateTextInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		ch := string(msg.Runes)
 		m.textValue = m.textValue[:m.cursorPos] + ch + m.textValue[m.cursorPos:]
 		m.cursorPos += len(ch)
+	case tea.KeySpace:
+		m.textValue = m.textValue[:m.cursorPos] + " " + m.textValue[m.cursorPos:]
+		m.cursorPos++
 	}
 	return m, nil
 }
 
-func (m model) updateSingleSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *model) updateSingleSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	step := m.steps[m.currentStep]
 	switch msg.String() {
 	case "up", "k":
@@ -233,7 +247,7 @@ func (m model) updateSingleSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) updateMultiSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *model) updateMultiSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	step := m.steps[m.currentStep]
 	switch msg.String() {
 	case "up", "k":
@@ -285,7 +299,10 @@ func (m *model) saveCurrentStep() {
 		case 3:
 			m.combined.Variant = strings.TrimSpace(m.textValue)
 		case 4:
-			m.combined.SeriesSort = strings.TrimSpace(m.textValue)
+			v := strings.TrimSpace(m.textValue)
+			if v != ""{
+				m.combined.SeriesSort = v
+			}
 		case 5:
 			m.combined.Developer = tools.FirstString(strings.TrimSpace(m.textValue))
 		case 6:
@@ -313,13 +330,32 @@ func (m *model) saveCurrentStep() {
 				m.combined.Depth = float32(val)
 			}
 		case 12:
-			m.combined.GatefoldTransparent = boolPtr(strings.TrimSpace(m.textValue))
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.GatefoldTransparent = boolPtr(v)
+			}
 		case 13:
 			m.combined.ScanNotes = strings.TrimSpace(m.textValue)
 		case 14:
-			m.combined.IGDBId = intPtr(m.textValue)
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.IGDBId = intPtr(v)
+
+				token, err := igdbClient.GetToken()
+				igc := igdb.NewClient(igdbClient.ClientID(), token, nil)
+				ig, err := igc.Games.Get(*m.combined.IGDBId, igdb.SetFields("name,first_release_date,genres,summary,slug"))
+				if err == nil {
+					m.combined.Description = &ig.Summary
+					m.combined.IgdbSlug = &ig.Slug
+				} else {
+					log.Println(err)
+				}
+			}
 		case 15:
-			m.combined.MobygamesId = intPtr(m.textValue)
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.MobygamesId = intPtr(v)
+			}
 	}
 }
 
@@ -416,16 +452,17 @@ func main(){
 	godotenv.Load("./../.env")
 	fmt.Println("BigBoxDB JSON Generator")
 
-	p := tea.NewProgram(initialModel())
+	mo := initialModel()
+	p := tea.NewProgram(&mo)
 	finalModel, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	m := finalModel.(model)
+	m := finalModel.(*model)
 	if m.done {
-		b, err := json.MarshalIndent(m, "", "  ")
+		b, err := json.MarshalIndent(m.combined, "", "  ")
 		if err != nil {
 			fmt.Println(err)
 		}

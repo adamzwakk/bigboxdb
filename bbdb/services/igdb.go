@@ -1,4 +1,4 @@
-package bbdbigdb
+package bbdbigdb // Named this way so it doesnt conflict with lib one
 
 import (
 	"encoding/json"
