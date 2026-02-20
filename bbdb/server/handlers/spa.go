@@ -47,7 +47,7 @@ func serveWithMeta(c *gin.Context, m Meta) {
 	modified := re.ReplaceAllString(string(html), fmt.Sprintf(`<title>%s | BigBoxDB</title>`, m.Title))
 
 	// Inject OG meta tags before </head>
-	ogTags := fmt.Sprintf(`<meta property="og:title" content="%s">
+	ogTags := fmt.Sprintf(`<meta property="og:title" content="%s | BigBoxDB">
 		<meta property="og:description" content="%s">
 		<meta property="og:image" content="%s">
 	</head>`, m.Title, m.Description, m.Image)
