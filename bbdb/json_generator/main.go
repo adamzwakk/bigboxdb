@@ -95,6 +95,7 @@ func initialModel() model {
 			{
 				kind:        textInput,
 				title:       "What kind of variant is it?",
+				optional:	 true,
 			},
 			{
 				kind:        textInput,
@@ -148,6 +149,21 @@ func initialModel() model {
 			{
 				kind:        textInput,
 				title:       "Please enter the MobyGamesID",
+				optional:	 true,
+			},
+			{
+				kind:        textInput,
+				title:       "Is there a GOG Link?",
+				optional:	 true,
+			},
+			{
+				kind:        textInput,
+				title:       "Is there a Steam Link?",
+				optional:	 true,
+			},
+			{
+				kind:        textInput,
+				title:       "Contributed By who?",
 				optional:	 true,
 			},
 		},
@@ -297,7 +313,12 @@ func (m *model) saveCurrentStep() {
 		case 2:
 			m.combined.Year, _ = strconv.Atoi(strings.TrimSpace(m.textValue))
 		case 3:
-			m.combined.Variant = strings.TrimSpace(m.textValue)
+			v := strings.TrimSpace(m.textValue)
+			if v != ""{
+				m.combined.Variant = v
+			} else {
+				m.combined.Variant = *m.combined.Region
+			}
 		case 4:
 			v := strings.TrimSpace(m.textValue)
 			if v != ""{
@@ -355,6 +376,27 @@ func (m *model) saveCurrentStep() {
 			v := strings.TrimSpace(m.textValue)
 			if v != "" {
 				m.combined.MobygamesId = intPtr(v)
+			}
+		case 16:
+			if m.combined.Links == nil {
+				m.combined.Links = make(map[string]string)
+			}
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.Links["gog"] = v
+			}
+		case 17:
+			if m.combined.Links == nil {
+				m.combined.Links = make(map[string]string)
+			}
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.Links["steam"] = v
+			}
+		case 18:
+			v := strings.TrimSpace(m.textValue)
+			if v != "" {
+				m.combined.ContributedBy = strPtr(v)
 			}
 	}
 }
@@ -462,6 +504,7 @@ func main(){
 
 	m := finalModel.(*model)
 	if m.done {
+		m.combined.BBDBVersion = intPtr("2")
 		b, err := json.MarshalIndent(m.combined, "", "  ")
 		if err != nil {
 			fmt.Println(err)

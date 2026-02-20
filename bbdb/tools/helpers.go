@@ -60,24 +60,24 @@ type ImportData struct{
 	Title			string	`json:"title"`
 	Description		*string	`json:"description,omitempty"`
 	Region			*string `json:"region,omitempty"`
-	SeriesSort		string	`json:"series"`
+	SeriesSort		string	`json:"series,omitempty"`
 	BoxType			uint	`json:"box_type"`
 	Width			float32	`json:"width"`
 	Height			float32	`json:"height"`
 	Depth			float32	`json:"depth"`
 	Year			int	`json:"year"`
-	Variant			string	`json:"variant"`
+	Variant			string	`json:"variant,omitempty"`
 	Developer		FirstString	`json:"developer"`
 	Publisher		FirstString	`json:"publisher"`
 	Platform		string	`json:"platform"`
 	ScanNotes		string	`json:"scan_notes,omitempty"`
-	GatefoldTransparent		*bool `json:"gatefold_transparent"`
+	GatefoldTransparent		*bool `json:"gatefold_transparent,omitempty"`
 	IGDBId			*int		`json:"igdb_id,omitempty"`
 	IgdbSlug		*string		`json:"igdb_slug,omitempty"`
 	MobygamesId		*int		`json:"mobygames_id,omitempty"`
 	BBDBVersion		*int	`json:"bbdb_version,omitempty"`
 	ContributedBy	*string	`json:"contributed_by,omitempty"`
-	Links			map[string]string `json:"links"`
+	Links			map[string]string `json:"links,omitempty"`
 }
 
 type FirstString string
