@@ -7,7 +7,7 @@ import (
 	"strings"
 	"path/filepath"
 	"os/exec"
-	"errors"
+	// "errors"
 
 	"github.com/disintegration/imaging"
 	"github.com/sunshineplan/imgconv"
@@ -24,9 +24,9 @@ func ProcessImage(srcPath string, dstPath, filename string, gWidth float32, gHei
 		fmt.Printf("Processing: %s\n", filename)
 	}
 
-	if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
-        return nil // Already exists
-    }
+	// if _, err := os.Stat(dstPath); !errors.Is(err, os.ErrNotExist) {
+    //     return nil // Already exists
+    // }
 
 	// Determine thumbnail size
 	var width, height int

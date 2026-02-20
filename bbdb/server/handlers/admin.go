@@ -343,30 +343,50 @@ func ImportFromSource(source FileSource) error {
 	}
 
 	foundBox := false
-	for _, filename := range files {
-		if filename == "info.json" {
-			continue
-		}
+	tmpDir, err := os.MkdirTemp("/tmp", "upload-"+slugTitle+"-"+strconv.Itoa(int(variantID)))
 
+	// Ensure cleanup happens no matter what
+	defer os.RemoveAll(tmpDir)
+
+	for _, filename := range files {
 		if !slices.Contains(allowedFiles, filename) {
 			return fmt.Errorf("failed to approve " + filename)
 		}
 
-		srcPath, isTemp, err := source.GetFilePath(filename)
+		srcPath, _, err := source.GetFilePath(filename)
 		if err != nil {
 			return fmt.Errorf("failed to get file: %w", err)
 		}
-		if isTemp {
-			defer os.Remove(srcPath)
+
+		if _, err := tools.Copy(srcPath, filepath.Join(tmpDir, filename)); err != nil {
+			return fmt.Errorf("failed to stage file: %w", err)
+		}
+	}
+
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		return fmt.Errorf("failed to read temp dir: %w", err)
+	}
+
+	for _, entry := range entries {
+		filename := entry.Name()
+	    srcPath := filepath.Join(tmpDir, filename)
+
+		if filename == "info.json" {
+			continue
 		}
 
-		dstPath := gameDir + "/" + filename
+		dstPath := tmpDir+"/"+filename
 		dstPath = strings.ReplaceAll(dstPath, ".tif", ".webp")
 
 		if err := tools.ProcessImage(srcPath, dstPath, filename, data.Width, data.Height, data.Depth); err != nil {
 			return fmt.Errorf("failed to process image: " + err.Error())
 		}
 
+		if filename == "front.webp" {
+			tools.Copy(dstPath,gameDir + "/" + filepath.Base(dstPath))
+		}
+		
 		texPaths = append(texPaths, dstPath)
 
 		// If we already have glb files, use em!
@@ -389,20 +409,20 @@ func ImportFromSource(source FileSource) error {
 		if os.Getenv("APP_ENV") != "production" {
 			log.Println("Making glb file")
 		}
-		if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, false); err != nil {
+		if err := tools.GenerateGLTFBox(gameInfo, texPaths, tmpDir, false); err != nil {
 			return fmt.Errorf("failed to process glb file: " + err.Error())
 		}
+		tools.Copy(tmpDir + "/box.glb",gameDir + "/box.glb")
 		if os.Getenv("APP_ENV") != "production" {
 			log.Println("Making low glb file")
 		}
-		if err := tools.GenerateGLTFBox(gameInfo, texPaths, gameDir, true); err != nil {
+		if err := tools.GenerateGLTFBox(gameInfo, texPaths, tmpDir, true); err != nil {
 			return fmt.Errorf("failed to process glb file: " + err.Error())
 		}
-
-		tools.CleanupKTX2Files(gameDir)
+		tools.Copy(tmpDir + "/box-low.glb",gameDir + "/box-low.glb")
 	}
 
-	if err := tools.OptimizeWebPImages(texPaths, data.Width, data.Height); err != nil{
+	if err := tools.OptimizeWebPImages([]string{gameDir+"/front.webp"}, data.Width, data.Height); err != nil{
 		fmt.Errorf("Could not optimize image folder")
 	}
 
