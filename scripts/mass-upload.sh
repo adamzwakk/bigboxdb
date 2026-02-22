@@ -17,7 +17,9 @@ for DIR in $1; do
     for tif in "$DIR"/*.tif "$DIR"/*.tiff; do
         [ -e "$tif" ] || continue
         filename=$(basename "${tif%.*}")
+        [ ! -f "$DIR/${filename}.webp" ] || continue
         cwebp -q 80 "$tif" -o "$TMPDIR/${filename}.webp"
+        cp "$TMPDIR/${filename}.webp" "$DIR"
     done
     
     # Copy JSON and existing WebP files
