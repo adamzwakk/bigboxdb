@@ -213,7 +213,9 @@ func ImportFromSource(source FileSource) error {
 	}
 
 	var user models.User
-	if err := database.FirstOrCreate(&user, models.User{Name: userName, ApiKey: uniuri.NewLen(24)}).Error; err != nil {
+	if err := database.Where(models.User{Name: userName}).
+		Attrs(models.User{ApiKey: uniuri.NewLen(24)}).
+		FirstOrCreate(&user).Error; err != nil {
 		return fmt.Errorf("could not find/create User")
 	}
 
