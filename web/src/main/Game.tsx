@@ -1,4 +1,3 @@
-import Header from '@/partials/Header'
 import '@/globals.css'
 import '@/main/main.scss'
 import { useEffect, useState } from 'react';
@@ -21,14 +20,13 @@ export default function Game() {
 
     return(
         <div className='relative z-4 text-white w-full ml-auto mr-auto max-w-4xl'>
-            <Header />
             {game && <>
-                <h1 className='text-[32px] font-bold'>{game.title} ({game.platform})</h1>
-                <div id="game" className='flex mt-5 gap-5'>
-                    <div className="w-md flex-1">
+                <h1 className='sm:text-[32px] text-[20px] leading-[22px] text-center font-bold'>{game.title} ({game.platform})</h1>
+                <div id="game" className='sm:flex mt-5 gap-5'>
+                    <div className="sm:w-md max-w-[80%] sm:max-w-auto sm:flex-1 ml-auto mr-auto">
                         <img src={"/scans/"+game.slug+'/'+game.variants[0].id+'/front.webp'} alt="" />
                     </div>
-                    <div className="flex-2">
+                    <div className="sm:flex-2 mt-5 sm:mt-0">
                         <div className="bg-black/50 p-5">
                             {game.description}
                         </div>
@@ -50,9 +48,9 @@ export default function Game() {
                 </div>
                 {game.variants && game.variants.length > 0 && <div className='mt-5'>
                     <h2 className='text-[24px] font-bold my-5'>Editions ({game.variants.length})</h2>
-                    <div className="flex justify-start gap-10">
+                    <div className="sm:flex justify-start gap-10">
                         {(game.variants.map((v: any) => (
-                            <a href={"/game/"+game.slug+"/"+v.id} key={v.id} className='variant w-[25%] bg-black/50 p-5'>
+                            <a href={"/game/"+game.slug+"/"+v.id} key={v.id} className='variant sm:w-[25%] w-full bg-black/50 p-5 block'>
                                 <div>{v.name}</div>
                                 <img src={"/scans/"+game.slug+"/"+v.id+"/front.webp"} alt="" className='w-[100%]' />
                                 <ul>

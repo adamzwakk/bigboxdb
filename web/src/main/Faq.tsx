@@ -1,4 +1,3 @@
-import Header from '@/partials/Header';
 import '../globals.css'
 import './main.scss'
 import { useEffect, useState } from 'react';
@@ -19,7 +18,6 @@ export default function Faq()
     return(
         <div className='relative z-4 text-white'>
             <title>FAQ | BigBoxDB</title>
-            <Header />
             <div id="faq" className='bg-black/50 w-[95%] p-5 mt-10 ml-auto mr-auto max-w-4xl text-white'>
                 <div id="faq-content">
                     <h3 className='mb-3 font-bold'>What is this?</h3>

@@ -1,4 +1,3 @@
-import Header from '@/partials/Header'
 import '@/globals.css'
 import '@/main/main.scss'
 import SingleGame from '@/partials/SingleGame';
@@ -23,10 +22,10 @@ export default function Variant() {
 
     return(
         <div className='relative z-4 text-white w-full ml-auto mr-auto max-w-4xl'>
-            <Header />
             {game && <>
-                <h1 className='text-[32px] font-bold text-center'>
-                    <a className='underline' href={"/game/"+game.game_slug}>{game.title}</a> ({game.variant} {game.box_type_name})
+                <h1 className='sm:text-[32px] text-[20px] leading-[22px] text-center'>
+                    <a className='underline font-bold' href={"/game/"+game.game_slug}>{game.title}</a>
+                    <div className='text-[20px] mt-4'>({game.variant} {game.box_type_name})</div>
                 </h1>
                 <div className='sm:h-200 h-100 w-[95%] ml-auto mr-auto relative max-w-6xl'>
                     <SingleGame ga={game} zd={0} showTitle={false} showFooter={true} />

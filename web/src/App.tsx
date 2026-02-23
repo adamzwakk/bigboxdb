@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes, useParams } from 'react-router'
+import { BrowserRouter, Route, Routes, useLocation, useParams } from 'react-router'
 import { Outlet } from 'react-router';
 import Home from './main/Home';
 import ThreeDeeShelf from './3dshelf/3dshelf';
@@ -6,8 +6,11 @@ import Footer from './partials/Footer';
 import Variant from './main/Variant';
 import Faq from './main/Faq';
 import Game from './main/Game';
+import Header from './partials/Header';
 
 function MainLayout() {
+  const loc = useLocation();
+
   return (
     <>
           <div id="bg" className="w-screen h-screen fixed z-0">
@@ -16,7 +19,8 @@ function MainLayout() {
               <div className="bg-tiles w-6000 h-6000 bg-repeat absolute blur-xs opacity-80"></div>
               </div>
           </div>
-          <div id="main-content" className="relative min-h-screen overflow-y-auto">
+          {loc && loc.pathname !== "/" && <Header />}
+          <div id="main-content" className="relative min-h-screen overflow-y-auto p-2 sm:p-0">
               <Outlet />
           </div>
         <div className="h-30">&nbsp;</div>
