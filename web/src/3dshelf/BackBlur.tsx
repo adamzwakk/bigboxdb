@@ -10,6 +10,7 @@ export default function BackBlur() {
     const handleClick = function(e:any){
         e.stopPropagation()
         if(isDragging) { return; }
+        document.title = "3D Shelves | BigBoxDB"
         navigate("/shelves");
     }
 

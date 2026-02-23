@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	ginadapter "go.rumenx.com/sitemap/adapters/gin"
 	
 	"github.com/adamzwakk/bigboxdb/server/db"
 	"github.com/adamzwakk/bigboxdb/server/models"
@@ -50,6 +51,8 @@ func main() {
 		r := gin.Default()
 		
 		{
+			r.GET("/sitemap.xml", ginadapter.Sitemap(handlers.SiteMap))
+
 			a := r.Group("/api")
 
 			a.GET("/health", func(c *gin.Context) {

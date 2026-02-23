@@ -6,10 +6,37 @@ import (
     "strings"
     "strconv"
 	"regexp"
+    "time"
     // "log"
 
     "github.com/gin-gonic/gin"
+    "go.rumenx.com/sitemap"
+
+    "github.com/adamzwakk/bigboxdb/server/db"
 )
+
+func SiteMap() *sitemap.Sitemap {
+    sm := sitemap.New()
+
+    variants, err := db.GetOrSetCache("variants:all", 10*time.Minute, func() ([]VariantResponse, error) {
+        o := queryOptions{Order: "Game.Title asc", WithDeveloper: true, WithPublisher: true}
+        return getVariants(o), nil
+    })
+    if err == nil {
+        for _, v := range variants {
+            sm.AddItem(sitemap.Item{
+                URL:      "https://www.bigboxdb.com/game/"+v.Slug,
+                LastMod:  v.AddedOn,
+                Priority: 1,
+                ChangeFreq: sitemap.Weekly,
+                Title:    v.GameTitle+" | BigBoxDB",
+                Images:   []sitemap.Image{{URL: "https://www.bigboxdb.com/scans/"+v.Slug+"/front.webp", Title: v.GameTitle+" | BigBoxDB"}},
+            })
+        }
+    }
+
+    return sm
+}
 
 func ServeIndex(c *gin.Context) {
     path := c.Request.URL.Path

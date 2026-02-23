@@ -65,7 +65,7 @@ function useInView(ref: React.RefObject<THREE.Group | null>, margin = 1.5) {
 }
 
 // Lazy-loaded model component with KTX2 support
-function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gatefoldRef: React.RefObject<Array<{"name":string, "mesh":THREE.Object3D,"anim":any}> | null>, useHighQuality: boolean, onShelf: boolean }) {
+function LazyModel({ g, gatefoldRef, useHighQuality, onShelf, active }: { g: Game3D, gatefoldRef: React.RefObject<Array<{"name":string, "mesh":THREE.Object3D,"anim":any}> | null>, useHighQuality: boolean, onShelf: boolean, active:boolean }) {
     const { gl } = useThree();
     const modelRef = useRef<THREE.Group>(null);
     const modelPath = useMemo(() => {
@@ -92,7 +92,7 @@ function LazyModel({ g, gatefoldRef, useHighQuality, onShelf }: { g: Game3D, gat
 
     const boxObj = gltf.scene;
     useEffect(() => {
-        if (modelRef.current && onShelf) {
+        if (modelRef.current && onShelf && !active) {
             if(g.dir == BoxShelfDirection.front)
             {
                 modelRef.current.position.set(0, 0, 2);
@@ -393,6 +393,9 @@ function BigBox({position, g, onShelf}:BigBoxProps)
 
         if(active)
         {
+            if(onShelf && camera.position.z < 20){
+                camera.position.z = 20 // camera gets defaulted to smaller than mindistance sometimes so lets hardcode that
+            }
             gsap.to(groupRef.current.position, {
                 x: camera.position.x,
                 y: camera.position.y,
@@ -486,7 +489,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
         {
             navigate("/shelves/game/"+g.slug);
             // window.history.replaceState(null, '', '/shelves/game/'+g.slug)
-            // document.title = 'BigBoxDB | '+g.title
+            document.title = g.title + " | BigBoxDB"
             // sendGTMEvent({ event: 'page_view', pagePath: '/shelves/game/'+g.slug })
         }
     }
@@ -522,7 +525,7 @@ function BigBox({position, g, onShelf}:BigBoxProps)
         >
             {shouldLoad ? (
                 <Suspense fallback={<BoxPlaceholder g={g} />}>
-                    <LazyModel g={g} gatefoldRef={gatefoldRef} useHighQuality={useHighQuality} onShelf={onShelf} />
+                    <LazyModel g={g} gatefoldRef={gatefoldRef} useHighQuality={useHighQuality} onShelf={onShelf} active={active} />
                 </Suspense>
             ) : (
                 <BoxPlaceholder g={g} />

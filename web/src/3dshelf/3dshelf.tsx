@@ -9,7 +9,7 @@ import ShelfOptions from "./ShelfOptions";
 export default function ThreeDeeShelf(){
     return (
         <ShelvesProvider>
-            <title>BigBoxDB | 3D Shelves</title>
+            <title>3D Shelves | BigBoxDB</title>
             <div id="topLogo" className="threedee">
               <a href="/" className="logoContain mb-2 block">
                   <div className="mainLogo">
