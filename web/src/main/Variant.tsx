@@ -25,7 +25,7 @@ export default function Variant() {
             {game && <>
                 <h1 className='sm:text-[32px] text-[20px] leading-[22px] text-center'>
                     <a className='underline font-bold' href={"/game/"+game.game_slug}>{game.title}</a>
-                    <div className='text-[20px] mt-4'>({game.variant} {game.box_type_name})</div>
+                    <div className='text-[20px] mt-4'>({game.variant})</div>
                 </h1>
                 <div className='sm:h-200 h-100 w-[95%] ml-auto mr-auto relative max-w-6xl'>
                     <SingleGame ga={game} zd={0} showTitle={false} showFooter={true} />

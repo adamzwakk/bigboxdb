@@ -43,6 +43,10 @@ func GetMeta(slug string, variantID int) (Meta, bool) {
 	title := v.Game.Title
 	if variantID > 0 {
 		title = fmt.Sprintf("%s (%s)", v.Game.Title, v.BoxType.Name)
+
+		if v.Description != "" {
+            title = fmt.Sprintf("%s (%s - %s)", v.Game.Title, v.Description, v.BoxType.Name)
+		}
 	}
 
     // Build and cache

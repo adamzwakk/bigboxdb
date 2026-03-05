@@ -195,11 +195,15 @@ func getVariants(options queryOptions) []VariantResponse{
 		if v.BoxType.ID == models.FindBoxTypeIDByName("Eidos Trapezoid") {
 			dir = 1
 		}
+		title := v.BoxType.Name
+		if v.Description != "" {
+			title = fmt.Sprintf("%s - %s", v.Description, v.BoxType.Name)
+		}
 		resp = append(resp, VariantResponse{
 			ID:            v.ID,
 			GameID:		v.Game.ID,
 			GameTitle:	v.Game.Title,
-			VariantDesc:	fmt.Sprintf("%s", v.Description),
+			VariantDesc:	title,
 			GameSlug:	v.Game.Slug,
 			Slug:	fmt.Sprintf("%s/%d", v.Game.Slug, v.ID),
 			Region:		v.Region.Name,
