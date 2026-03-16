@@ -52,7 +52,7 @@ func GetMeta(slug string, variantID int) (Meta, bool) {
     // Build and cache
     m := Meta{
         Title:       title,
-        Description: v.Description,
+        Description: fmt.Sprintf("%s (%s)", v.Description, v.BoxType.Name),
         Image:       fmt.Sprintf("%s/scans/%s/%d/%s", os.Getenv("SITE_URL"), v.Game.Slug, v.ID, "front.webp"),
     }
     setMeta(slug, m)

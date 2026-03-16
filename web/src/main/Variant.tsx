@@ -36,7 +36,7 @@ export default function Variant() {
                             <ul>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Release Year:</h3> {game.year}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Platform:</h3> {game.platform}</li>
-                                <li><h3 className='font-bold text-[18px] mb-2 inline'>Variant:</h3> {game.variant} {game.box_type_name}</li>
+                                <li><h3 className='font-bold text-[18px] mb-2 inline'>Variant:</h3> {game.variant}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Dimensions (inches):</h3> {game.w} x {game.h} x {game.d}</li>
                                 <li><h3 className='font-bold text-[18px] mb-2 inline'>Contributed By:</h3> {game.contributed_by}</li>
                             </ul>
