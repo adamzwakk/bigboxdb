@@ -35,6 +35,14 @@ func RunAllSeeds(db *gorm.DB) error {
         return err
     }
 
+    if err := RunSeedOnce(db, "seed_v2_box_types", func(tx *gorm.DB) error {
+		log.Println("No record of seed_v2_box_types seed, running...")
+		seedsRan += 1
+        return seedv2BoxTypes(tx)
+    }); err != nil {
+        return err
+    }
+
 	if(seedsRan > 0){
 		log.Println(fmt.Sprintf("%d Seeds ran!", seedsRan))
 	}
@@ -43,6 +51,17 @@ func RunAllSeeds(db *gorm.DB) error {
 }
 
 func seedInitialBoxTypes(db *gorm.DB) error {
+    for _, bt := range models.BoxtypesEnum {
+        if err := db.
+            Where("id = ?", bt.ID).
+            FirstOrCreate(&bt).Error; err != nil {
+				return err
+			}
+    }
+    return nil
+}
+
+func seedv2BoxTypes(db *gorm.DB) error {
     for _, bt := range models.BoxtypesEnum {
         if err := db.
             Where("id = ?", bt.ID).
